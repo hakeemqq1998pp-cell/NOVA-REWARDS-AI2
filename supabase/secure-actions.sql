@@ -21,8 +21,9 @@ create policy "members read own daily claims"
   on public.daily_claims for select to authenticated
   using (auth.uid() = user_id);
 
--- Members can request a task review. This never approves the task or awards points.
-create or replace function public.request_task_completion(p_task_id uuid)
+-- Members must provide evidence; this RPC never approves the task or awards points.
+drop function if exists public.request_task_completion(uuid);
+create or replace function public.request_task_completion(p_task_id uuid, p_evidence text)
 returns uuid
 language plpgsql
 security definer
@@ -36,6 +37,10 @@ begin
     raise exception 'Authentication required';
   end if;
 
+  if p_evidence is null or char_length(btrim(p_evidence)) < 10 or char_length(btrim(p_evidence)) > 2000 then
+    raise exception 'Evidence must contain between 10 and 2000 characters';
+  end if;
+
   if not exists (
     select 1 from public.tasks
     where id = p_task_id and is_active = true
@@ -43,8 +48,8 @@ begin
     raise exception 'Task is not available';
   end if;
 
-  insert into public.task_completions(user_id, task_id, status, points_awarded)
-  values (v_user, p_task_id, 'pending', 0)
+  insert into public.task_completions(user_id, task_id, evidence_text, status, points_awarded)
+  values (v_user, p_task_id, btrim(p_evidence), 'pending', 0)
   returning id into v_completion;
 
   return v_completion;
@@ -54,8 +59,8 @@ exception
 end;
 $$;
 
-revoke all on function public.request_task_completion(uuid) from public;
-grant execute on function public.request_task_completion(uuid) to authenticated;
+revoke all on function public.request_task_completion(uuid, text) from public;
+grant execute on function public.request_task_completion(uuid, text) to authenticated;
 
 -- One daily reward per Baghdad calendar day. This writes the ledger atomically.
 create or replace function public.claim_daily_reward()
