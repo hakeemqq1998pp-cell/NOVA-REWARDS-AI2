@@ -119,7 +119,7 @@ export default function App() {
       if (!alive) return;
       if (!ledgerError) setLedgerPoints((ledger || []).reduce((sum,row)=>sum + Number(row.amount || 0),0));
       if (!claimError) setDaily(Boolean(claims?.length));
-      if (!taskError) setActiveTasks((taskRows || []).map(row => ({...row, icon: Target, color:"violet", title:row.title, description:row.description || ""})));
+      setActiveTasks(taskError ? [] : (taskRows || []).map(row => ({...row, icon: Target, color:"violet", title:row.title, description:row.description || ""})));
       if (!completionError) setRequestedTaskIds((completionRows || []).map(row => row.task_id));
     })();
     return () => { alive = false; };
@@ -142,7 +142,9 @@ export default function App() {
     setUser(null);
   }
 
-  const visibleTasks = user && activeTasks !== null ? activeTasks : tasks;\n\n  async function claimDaily() {
+  const visibleTasks = user ? (activeTasks ?? []) : tasks;
+
+  async function claimDaily() {
     if (dailyBusy || daily) return;
     if (supabase && user) {
       setDailyBusy(true);
@@ -204,7 +206,7 @@ export default function App() {
           </section>
           <section className="feature-grid">
             <div className="panel tasks-panel"><div className="section-head"><div><h2>{t.discover}</h2><p>{t.available}</p></div><button className="text-btn" onClick={()=>setTab("tasks")}>{t.seeAll}<ArrowUpRight size={15}/></button></div>
-              <div className="task-list">{tasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={done.includes(task.id)} onStart={()=>completeTask(task.id)}/>)}</div>
+              <div className="task-list">{visibleTasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={user ? requestedTaskIds.includes(task.id) : done.includes(task.id)} onStart={()=>completeTask(task.id)}/>)}</div>
             </div>
             <div className="side-stack"><div className="daily-card"><div className="daily-top"><div className="daily-icon"><Gift size={22}/></div><span>{t.demo}</span></div><h3>{t.daily}</h3><p>{t.dailyText}</p><div className="daily-reward">+25 <small>{t.pointsUnit}</small></div><button className="daily-btn" disabled={daily || dailyBusy} onClick={claimDaily}>{daily?<><Check size={16}/>{t.claimed}:<>{t.claim}<ArrowUpRight size={16}/></>}</button></div>
               <div className="ref-card"><div className="ref-icon"><Users size={20}/></div><h3>{t.referralTitle}</h3><p>{t.referralText}</p><button className="secondary-btn" onClick={copyReferral}>{copied?<Check size={16}/>:<ArrowUpRight size={16}/>} {copied?t.copied:t.copy}</button></div></div>
@@ -212,7 +214,7 @@ export default function App() {
           <section className="panel activity-panel"><div className="section-head"><div><h2>{t.recent}</h2><p>{t.demo}</p></div><button className="text-btn" onClick={()=>setTab("history")}>{t.all}<ArrowUpRight size={15}/></button></div><ActivityList done={done} daily={daily} t={t}/></section>
         </>}
 
-        {tab==="tasks" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.discover}</h2><p>{t.available}</p></div><span className="soft-pill">{visibleTasks.length} {isAr?"مهام":"tasks"}</span></div>{tasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={done.includes(task.id)} onStart={()=>completeTask(task.id)}/>)}</section>}
+        {tab==="tasks" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.discover}</h2><p>{t.available}</p></div><span className="soft-pill">{visibleTasks.length} {isAr?"مهام":"tasks"}</span></div>{visibleTasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={user ? requestedTaskIds.includes(task.id) : done.includes(task.id)} onStart={()=>completeTask(task.id)}/>)}</section>}
         {tab==="wallet" && <section className="panel wallet-page"><div className="wallet-hero"><div><span>{t.points}</span><h2>{points.toLocaleString()} <small>{t.pointsUnit}</small></h2><p>{t.noCash}</p></div><div className="wallet-graphic"><Wallet size={52}/></div></div><div className="section-head"><div><h2>{t.walletTitle}</h2><p>{t.walletText}</p></div></div><ActivityList done={done} daily={daily} t={t}/><button className="primary-btn disabled-btn" disabled><ArrowDownToLine size={17}/>{t.redeem}</button></section>}
         {tab==="referrals" && <section className="panel page-panel referral-page"><div className="ref-illustration"><Users size={48}/></div><h2>{t.referralTitle}</h2><p>{t.referralText}</p><button className="primary-btn" onClick={copyReferral}>{copied?<Check/>:<ArrowUpRight/>}{copied?t.copied:t.copy}</button><small>{t.demoNotice}</small></section>}
         {tab==="history" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.recent}</h2><p>{t.demo}</p></div></div><ActivityList done={done} daily={daily} t={t}/></section>}
@@ -233,8 +235,8 @@ function Stat({icon:Icon,label,value,suffix,tone,trend}) {
   return <div className="stat-card"><div className={"stat-icon "+tone}><Icon size={20}/></div><span className="stat-label">{label}</span><div className="stat-value">{value}<small>{suffix}</small></div><div className="stat-foot"><span className="stat-dot"/> {trend}</div></div>;
 }
 function TaskRow({task,t,completed,onStart}) {
-  const Icon=task.icon;
-  return <div className="task-row"><div className={"task-icon "+task.color}><Icon size={20}/></div><div className="task-info"><b>{t[task.titleKey]}</b><small>{t[task.descKey]}</small></div><div className="task-reward">+{task.points}<small>{t.pointsUnit}</small></div><button className={"task-action "+(completed?"done":"")} onClick={onStart}>{completed?<Check size={17}/>:<ArrowUpRight size={17}/>}<span>{completed?(t.completed):t.start}</span></button></div>;
+  const Icon=task.icon || Target;
+  return <div className="task-row"><div className={"task-icon "+(task.color || "violet")}><Icon size={20}/></div><div className="task-info"><b>{task.title || t[task.titleKey]}</b><small>{task.description || t[task.descKey]}</small></div><div className="task-reward">+{task.points}<small>{t.pointsUnit}</small></div><button className={"task-action "+(completed?"done":"")} onClick={onStart}>{completed?<Check size={17}/>:<ArrowUpRight size={17}/>}<span>{completed?(t.completed):t.start}</span></button></div>;
 }
 function ActivityList({done,daily,t}) {
   const entries=[...(daily?[{name:t.daily,points:25}]:[]),...done.map(id=>({name:t[tasks.find(x=>x.id===id)?.titleKey],points:tasks.find(x=>x.id===id)?.points||0}))];
