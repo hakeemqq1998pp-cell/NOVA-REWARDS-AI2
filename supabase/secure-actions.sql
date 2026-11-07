@@ -13,6 +13,9 @@ create table if not exists public.daily_claims (
 
 alter table public.daily_claims enable row level security;
 
+revoke all on table public.daily_claims from anon, authenticated;
+grant select on table public.daily_claims to authenticated;
+
 drop policy if exists "members read own daily claims" on public.daily_claims;
 create policy "members read own daily claims"
   on public.daily_claims for select to authenticated
