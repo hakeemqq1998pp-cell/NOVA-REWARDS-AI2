@@ -1,0 +1,202 @@
+import { useEffect, useMemo, useState } from "react";
+import {
+  Activity, ArrowDownToLine, ArrowUpRight, BadgeCheck, Bell, Check,
+  ChevronLeft, CircleHelp, Coins, Gift, Globe2, LayoutDashboard, LogOut,
+  Menu, Plus, Settings, ShieldCheck, Sparkles, Target, TrendingUp, Users,
+  Wallet, X, Zap
+} from "lucide-react";
+import { backendReady, supabase } from "./lib/supabase";
+
+const copy = {
+  ar: {
+    brand:"NOVA REWARDS", tagline:"كل إنجاز يقربك من مكافأتك",
+    overview:"نظرة عامة", tasks:"المهام", wallet:"المحفظة", referrals:"الإحالات",
+    history:"النشاط", settings:"الإعدادات", welcome:"مرحباً بعودتك 👋",
+    subtitle:"تابع نقاطك واكتشف فرصاً جديدة لكسب المكافآت.",
+    points:"رصيد النقاط", earned:"إجمالي المكتسب", completed:"مهام مكتملة", invites:"دعوات ناجحة",
+    discover:"مهام مقترحة", seeAll:"عرض الكل", available:"متاحة الآن",
+    start:"ابدأ المهمة", daily:"مكافأة يومية", dailyText:"عد يومياً واكتشف فرصاً جديدة.",
+    claim:"استلام", recent:"آخر النشاطات", all:"عرض السجل", referralTitle:"ادعُ أصدقاءك واكسب نقاطاً",
+    referralText:"شارك رابطك. ستظهر المكافأة بعد التحقق من الإحالة وفق شروط البرنامج.",
+    copy:"نسخ الرابط", copied:"تم النسخ", pointsUnit:"نقطة", demo:"وضع تجريبي",
+    demoNotice:"هذه نسخة أولية. النقاط المعروضة تجريبية ولا تمثل أموالاً أو رصيداً قابلاً للسحب.",
+    backend:"حالة الربط", connected:"Supabase متصل بالإعدادات", notConnected:"لم تتم إضافة مفاتيح Supabase بعد",
+    walletTitle:"محفظتك", walletText:"راجع رصيد النقاط وسجل الحركات وطلبات الاستبدال.",
+    redeem:"طلب استبدال", noCash:"الاستبدال والسحب غير مفعلين حتى ربط مزود دفع والتحقق من الشروط.",
+    task1:"أكمل ملفك الشخصي", task1d:"أضف معلوماتك الأساسية لتهيئة حسابك.",
+    task2:"استكشف ميزة NOVA AI", task2d:"جرّب مساحة الأدوات الذكية داخل المنصة.",
+    task3:"ادعُ صديقاً", task3d:"شارك رابط الدعوة مع شخص تعرفه.",
+    profile:"الملف الشخصي", language:"اللغة", admin:"الإدارة", login:"دخول تجريبي",
+    logout:"تسجيل الخروج", signIn:"تسجيل الدخول", email:"البريد الإلكتروني",
+    password:"كلمة المرور", create:"إنشاء حساب", signInHint:"استخدم بريدك للبدء. يتطلب الحساب الحقيقي إعداد Supabase.",
+    authError:"تعذر إكمال العملية. تحقق من إعدادات Supabase والبريد.",
+    loginSuccess:"تم إرسال رابط التحقق إلى بريدك إذا كان إعداد المصادقة مفعلاً.",
+    close:"إغلاق", pointsLabel:"النقاط", progress:"تقدمك", secure:"مكافآت بشفافية وأمان",
+    adminNote:"لوحة الإدارة ستتطلب حساباً بصلاحية admin في قاعدة البيانات."
+  },
+  en: {
+    brand:"NOVA REWARDS", tagline:"Every action brings you closer",
+    overview:"Overview", tasks:"Tasks", wallet:"Wallet", referrals:"Referrals",
+    history:"Activity", settings:"Settings", welcome:"Welcome back 👋",
+    subtitle:"Track your points and discover new ways to earn rewards.",
+    points:"Points balance", earned:"Total earned", completed:"Tasks completed", invites:"Successful invites",
+    discover:"Suggested tasks", seeAll:"See all", available:"Available now",
+    start:"Start task", daily:"Daily reward", dailyText:"Come back daily to discover new opportunities.",
+    claim:"Claim", recent:"Recent activity", all:"View history", referralTitle:"Invite friends and earn points",
+    referralText:"Share your link. Referral rewards are granted after eligibility checks.",
+    copy:"Copy link", copied:"Copied", pointsUnit:"pts", demo:"Demo mode",
+    demoNotice:"This is an early preview. Displayed points are demo values, not money or withdrawable balance.",
+    backend:"Connection", connected:"Supabase configured", notConnected:"Supabase keys have not been added",
+    walletTitle:"Your wallet", walletText:"Review points, transactions and redemption requests.",
+    redeem:"Request redemption", noCash:"Redemption and withdrawals are disabled until a payment provider and rules are configured.",
+    task1:"Complete your profile", task1d:"Add basic information to set up your account.",
+    task2:"Explore NOVA AI", task2d:"Try the smart tools area inside the platform.",
+    task3:"Invite a friend", task3d:"Share your invitation link with someone you know.",
+    profile:"Profile", language:"Language", admin:"Admin", login:"Demo sign in",
+    logout:"Sign out", signIn:"Sign in", email:"Email address",
+    password:"Password", create:"Create account", signInHint:"Use your email to get started. Real accounts require Supabase setup.",
+    authError:"Could not complete the request. Check Supabase and email settings.",
+    loginSuccess:"A verification link was sent if authentication is enabled.",
+    close:"Close", pointsLabel:"Points", progress:"Your progress", secure:"Transparent, safer rewards",
+    adminNote:"Admin access requires an admin role in the database."
+  }
+};
+
+const tasks = [
+  { id:1, icon:BadgeCheck, color:"violet", points:120, titleKey:"task1", descKey:"task1d", tag:"Profile" },
+  { id:2, icon:Sparkles, color:"blue", points:80, titleKey:"task2", descKey:"task2d", tag:"NOVA AI" },
+  { id:3, icon:Users, color:"orange", points:150, titleKey:"task3", descKey:"task3d", tag:"Invite" }
+];
+
+export default function App() {
+  const [lang,setLang] = useState("ar");
+  const [tab,setTab] = useState("overview");
+  const [modal,setModal] = useState("");
+  const [user,setUser] = useState(null);
+  const [email,setEmail] = useState("");
+  const [password,setPassword] = useState("");
+  const [authBusy,setAuthBusy] = useState(false);
+  const [message,setMessage] = useState("");
+  const [done,setDone] = useState([]);
+  const [daily,setDaily] = useState(false);
+  const [mobileOpen,setMobileOpen] = useState(false);
+  const [copied,setCopied] = useState(false);
+  const t = copy[lang];
+  const isAr = lang === "ar";
+
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getSession().then(({data}) => setUser(data.session?.user ?? null));
+    const { data } = supabase.auth.onAuthStateChange((_event,session) => setUser(session?.user ?? null));
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  const nav = [
+    ["overview",LayoutDashboard,t.overview],
+    ["tasks",Target,t.tasks],
+    ["wallet",Wallet,t.wallet],
+    ["referrals",Users,t.referrals],
+    ["history",Activity,t.history]
+  ];
+
+  const points = useMemo(() => done.reduce((sum,id) => sum + (tasks.find(x=>x.id===id)?.points || 0),0) + (daily ? 25 : 0),[done,daily]);
+
+  async function authenticate(e) {
+    e.preventDefault();
+    if (!supabase) { setMessage(t.notConnected); return; }
+    setAuthBusy(true); setMessage("");
+    try {
+      const { error } = await supabase.auth.signInWithOtp({ email, options:{ emailRedirectTo: window.location.origin } });
+      if (error) throw error;
+      setMessage(t.loginSuccess);
+    } catch (err) { setMessage(err.message || t.authError); }
+    finally { setAuthBusy(false); }
+  }
+
+  async function signOut() {
+    if (supabase) await supabase.auth.signOut();
+    setUser(null);
+  }
+
+  async function copyReferral() {
+    const code = "NOVA-" + (user?.id?.slice(0,8) || "PREVIEW");
+    const link = window.location.origin + "/?ref=" + code;
+    try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(()=>setCopied(false),1800); }
+    catch { setMessage(link); }
+  }
+
+  function completeTask(id) {
+    if (!done.includes(id)) setDone(old=>[...old,id]);
+    setMessage(isAr ? "تم تسجيلها في العرض التجريبي فقط." : "Recorded in this demo preview only.");
+  }
+
+  const sidebar = (
+    <aside className={"sidebar " + (mobileOpen ? "open" : "")}>
+      <div className="brand"><div className="brand-mark"><Zap size={22}/></div><div><strong>NOVA<span> REWARDS</span></strong><small>{t.tagline}</small></div><button className="icon-btn mobile-close" onClick={()=>setMobileOpen(false)}><X/></button></div>
+      <div className="nav-label">{isAr ? "القائمة الرئيسية" : "MAIN MENU"}</div>
+      <nav>{nav.map(([id,Icon,label])=><button key={id} className={"nav-item "+(tab===id?"active":"")} onClick={()=>{setTab(id);setMobileOpen(false)}}><Icon size={18}/><span>{label}</span>{tab===id&&<ChevronLeft size={16}/>}</button>)}</nav>
+      <div className="sidebar-bottom"><div className="secure-card"><ShieldCheck size={19}/><div><b>{t.secure}</b><small>{t.demo}</small></div></div><button className="nav-item" onClick={()=>setModal("settings")}><Settings size={18}/><span>{t.settings}</span></button><button className="nav-item" onClick={()=>setModal("admin")}><ShieldCheck size={18}/><span>{t.admin}</span></button></div>
+      <div className="user-mini"><div className="avatar">{user?.email?.[0]?.toUpperCase() || "N"}</div><div className="user-info"><b>{user?.email || "NOVA Member"}</b><small>{user ? "Member" : t.demo}</small></div><button className="icon-btn" title={t.logout} onClick={signOut}><LogOut size={17}/></button></div>
+    </aside>
+  );
+
+  return <div className={"app "+(isAr?"rtl":"ltr")} dir={isAr?"rtl":"ltr"}>
+    {sidebar}
+    {mobileOpen && <button className="scrim" onClick={()=>setMobileOpen(false)} aria-label="Close menu"/>}
+    <main className="main">
+      <header className="topbar">
+        <div className="top-left"><button className="icon-btn menu-btn" onClick={()=>setMobileOpen(true)}><Menu/></button><div className="breadcrumb">{t.overview}<span>/</span><b>{nav.find(x=>x[0]===tab)?.[2] || t.overview}</b></div></div>
+        <div className="top-actions"><span className={"connection "+(backendReady?"online":"offline")}><i/>{backendReady?t.connected:t.demo}</span><button className="icon-btn" onClick={()=>setLang(lang==="ar"?"en":"ar")} title={t.language}><Globe2 size={18}/><small>{lang.toUpperCase()}</small></button><button className="icon-btn notification" onClick={()=>setMessage(t.demoNotice)}><Bell size={18}/><i/></button><button className="top-avatar" onClick={()=>setModal("auth")}>{user?.email?.[0]?.toUpperCase()||"N"}</button></div>
+      </header>
+
+      <div className="content">
+        <div className="welcome-row"><div><div className="eyebrow"><Sparkles size={14}/>{t.brand}</div><h1>{tab==="overview"?t.welcome:nav.find(x=>x[0]===tab)?.[2]}</h1><p>{tab==="overview"?t.subtitle:tab==="wallet"?t.walletText:tab==="referrals"?t.referralText:t.subtitle}</p></div><button className="primary-btn" onClick={()=>setModal("auth")}><Plus size={17}/>{user?(user.email?.split("@")[0]||t.profile):t.login}</button></div>
+
+        <div className="notice"><div className="notice-icon"><CircleHelp size={18}/></div><p>{t.demoNotice}</p><span>{t.demo}</span></div>
+
+        {tab==="overview" && <>
+          <section className="stats-grid">
+            <Stat icon={Coins} label={t.points} value={points.toLocaleString()} suffix={t.pointsUnit} tone="purple" trend={t.progress}/>
+            <Stat icon={TrendingUp} label={t.earned} value={points.toLocaleString()} suffix={t.pointsUnit} tone="blue" trend={t.demo}/>
+            <Stat icon={Target} label={t.completed} value={done.length} suffix="" tone="orange" trend={t.progress}/>
+            <Stat icon={Users} label={t.invites} value="0" suffix="" tone="green" trend={t.demo}/>
+          </section>
+          <section className="feature-grid">
+            <div className="panel tasks-panel"><div className="section-head"><div><h2>{t.discover}</h2><p>{t.available}</p></div><button className="text-btn" onClick={()=>setTab("tasks")}>{t.seeAll}<ArrowUpRight size={15}/></button></div>
+              <div className="task-list">{tasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={done.includes(task.id)} onStart={()=>completeTask(task.id)}/>)}</div>
+            </div>
+            <div className="side-stack"><div className="daily-card"><div className="daily-top"><div className="daily-icon"><Gift size={22}/></div><span>{t.demo}</span></div><h3>{t.daily}</h3><p>{t.dailyText}</p><div className="daily-reward">+25 <small>{t.pointsUnit}</small></div><button className="daily-btn" disabled={daily} onClick={()=>setDaily(true)}>{daily?<><Check size={16}/>{t.copied}</>:<>{t.claim}<ArrowUpRight size={16}/></>}</button></div>
+              <div className="ref-card"><div className="ref-icon"><Users size={20}/></div><h3>{t.referralTitle}</h3><p>{t.referralText}</p><button className="secondary-btn" onClick={copyReferral}>{copied?<Check size={16}/>:<ArrowUpRight size={16}/>} {copied?t.copied:t.copy}</button></div></div>
+          </section>
+          <section className="panel activity-panel"><div className="section-head"><div><h2>{t.recent}</h2><p>{t.demo}</p></div><button className="text-btn" onClick={()=>setTab("history")}>{t.all}<ArrowUpRight size={15}/></button></div><ActivityList done={done} daily={daily} t={t}/></section>
+        </>}
+
+        {tab==="tasks" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.discover}</h2><p>{t.available}</p></div><span className="soft-pill">{tasks.length} {isAr?"مهام":"tasks"}</span></div>{tasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={done.includes(task.id)} onStart={()=>completeTask(task.id)}/>)}</section>}
+        {tab==="wallet" && <section className="panel wallet-page"><div className="wallet-hero"><div><span>{t.points}</span><h2>{points.toLocaleString()} <small>{t.pointsUnit}</small></h2><p>{t.noCash}</p></div><div className="wallet-graphic"><Wallet size={52}/></div></div><div className="section-head"><div><h2>{t.walletTitle}</h2><p>{t.walletText}</p></div></div><ActivityList done={done} daily={daily} t={t}/><button className="primary-btn disabled-btn" disabled><ArrowDownToLine size={17}/>{t.redeem}</button></section>}
+        {tab==="referrals" && <section className="panel page-panel referral-page"><div className="ref-illustration"><Users size={48}/></div><h2>{t.referralTitle}</h2><p>{t.referralText}</p><button className="primary-btn" onClick={copyReferral}>{copied?<Check/>:<ArrowUpRight/>}{copied?t.copied:t.copy}</button><small>{t.demoNotice}</small></section>}
+        {tab==="history" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.recent}</h2><p>{t.demo}</p></div></div><ActivityList done={done} daily={daily} t={t}/></section>}
+      </div>
+      <footer><span>© 2026 NOVA REWARDS</span><span>{t.demo} · v1.0.0</span></footer>
+    </main>
+
+    {modal && <div className="modal-backdrop" onClick={()=>setModal("")}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-head"><h2>{modal==="auth"?t.signIn:modal==="admin"?t.admin:t.settings}</h2><button className="icon-btn" onClick={()=>setModal("")}><X/></button></div>
+      {modal==="auth" && <form onSubmit={authenticate}><p>{t.signInHint}</p><label>{t.email}<input type="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/></label><label>{t.password}<input type="password" minLength="6" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" disabled/></label><small>{isAr?"تسجيل الدخول برابط آمن إلى البريد؛ حقل كلمة المرور للمرحلة اللاحقة.":"Password sign-in will be enabled in a later release; email link is used now."}</small><button className="primary-btn full" disabled={authBusy}>{authBusy?"…":t.signIn}</button>{message&&<div className="form-message">{message}</div>}</form>}
+      {modal==="admin" && <div className="modal-body"><p>{t.adminNote}</p><p className="muted">{t.noCash}</p></div>}
+      {modal==="settings" && <div className="modal-body"><p>{t.backend}: <b>{backendReady?t.connected:t.notConnected}</b></p><button className="secondary-btn" onClick={()=>setLang(lang==="ar"?"en":"ar")}><Globe2 size={16}/>{t.language}: {lang.toUpperCase()}</button><p className="muted">{t.demoNotice}</p></div>}
+    </div></div>}
+    {message && <div className="toast" role="status">{message}<button onClick={()=>setMessage("")}><X size={15}/></button></div>}
+  </div>;
+}
+
+function Stat({icon:Icon,label,value,suffix,tone,trend}) {
+  return <div className="stat-card"><div className={"stat-icon "+tone}><Icon size={20}/></div><span className="stat-label">{label}</span><div className="stat-value">{value}<small>{suffix}</small></div><div className="stat-foot"><span className="stat-dot"/> {trend}</div></div>;
+}
+function TaskRow({task,t,completed,onStart}) {
+  const Icon=task.icon;
+  return <div className="task-row"><div className={"task-icon "+task.color}><Icon size={20}/></div><div className="task-info"><b>{t[task.titleKey]}</b><small>{t[task.descKey]}</small></div><div className="task-reward">+{task.points}<small>{t.pointsUnit}</small></div><button className={"task-action "+(completed?"done":"")} onClick={onStart}>{completed?<Check size={17}/>:<ArrowUpRight size={17}/>}<span>{completed?(t.completed):t.start}</span></button></div>;
+}
+function ActivityList({done,daily,t}) {
+  const entries=[...(daily?[{name:t.daily,points:25}]:[]),...done.map(id=>({name:t[tasks.find(x=>x.id===id)?.titleKey],points:tasks.find(x=>x.id===id)?.points||0}))];
+  if(!entries.length) return <div className="empty-state"><Activity size={24}/><p>{t.demo}</p></div>;
+  return <div className="activity-list">{entries.map((x,i)=><div className="activity-row" key={i}><div className="activity-check"><Check size={16}/></div><b>{x.name}</b><span>+{x.points} {t.pointsUnit}</span></div>)}</div>;
+}
