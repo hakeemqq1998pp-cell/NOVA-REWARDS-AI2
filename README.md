@@ -42,7 +42,7 @@ set role = 'admin'
 where id = (select id from auth.users where email = 'admin@example.com');
 ```
 The admin screen can then review pending task requests. Approval and point-ledger credit are performed atomically by `admin_review_task_completion()`; members cannot call it successfully.
- It also backfills profiles for existing Auth users. Signup links may carry a referral code; valid attribution is recorded as a pending referral, with no automatic reward. Starter tasks are inserted as inactive until each task has a real completion verifier and anti-abuse review. The daily reward RPC records its award atomically in the database ledger and enforces one claim per Baghdad day. Task completion requests remain pending and do not award points automatically. Direct client inserts into task completions are disabled; requests must use the validation RPC.
+ It also backfills profiles for existing Auth users. Signup links may carry a referral code; valid attribution is recorded as a pending referral, with no automatic reward. Starter tasks are inserted as inactive until each task has a real completion verifier and anti-abuse review. The daily reward RPC records its award atomically in the database ledger and enforces one claim per Baghdad day. Task completion requests require evidence, remain pending and do not award points automatically. Direct client inserts into task completions are disabled; requests must use the validation RPC.
 
 ## Deploy to Netlify
 - Build command: `npm run build`
