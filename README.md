@@ -27,7 +27,7 @@ Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env` to enable Supabas
 4. Add the project URL and anon/public key to the deployment environment.
 5. Configure email authentication and redirect URLs.
 
-The profile bootstrap migration does not grant admin privileges or award points. Starter tasks are inserted as inactive until verified completion checks are implemented.
+The profile bootstrap migration does not grant admin privileges or award points. Starter tasks are inserted as inactive until verified completion checks are implemented. The daily reward RPC records its award in the database ledger and enforces one claim per Baghdad day. Task completion requests remain pending and do not award points automatically.
 
 ## Deploy to Netlify
 - Build command: `npm run build`
