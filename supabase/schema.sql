@@ -28,9 +28,17 @@ create table if not exists public.task_completions (
   task_id uuid not null references public.tasks(id) on delete restrict,
   status text not null default 'pending' check (status in ('pending','approved','rejected')),
   points_awarded integer not null default 0 check (points_awarded >= 0),
+  reviewed_by uuid references public.profiles(id) on delete set null,
+  reviewed_at timestamptz,
   created_at timestamptz not null default now(),
   unique(user_id, task_id)
 );
+
+-- Add review audit fields to existing installations as well.
+alter table public.task_completions
+  add column if not exists reviewed_by uuid references public.profiles(id) on delete set null;
+alter table public.task_completions
+  add column if not exists reviewed_at timestamptz;
 
 create table if not exists public.point_ledger (
   id uuid primary key default gen_random_uuid(),
