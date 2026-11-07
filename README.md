@@ -34,7 +34,15 @@ Then configure Supabase Authentication:
 - Add the deployed site URL and local development URL to the allowed redirect URLs.
 - Confirm the email provider is configured and test signup/sign-in.
 
-The profile trigger creates member profiles only; it never grants admin privileges or awards points. It also backfills profiles for existing Auth users. Signup links may carry a referral code; valid attribution is recorded as a pending referral, with no automatic reward. Starter tasks are inserted as inactive until each task has a real completion verifier and anti-abuse review. The daily reward RPC records its award atomically in the database ledger and enforces one claim per Baghdad day. Task completion requests remain pending and do not award points automatically. Direct client inserts into task completions are disabled; requests must use the validation RPC.
+The profile trigger creates member profiles only; it never grants admin privileges or awards points.
+To grant the first administrator, create/sign in to the intended account, then run a one-time owner-controlled SQL statement in the Supabase SQL Editor (replace the email):
+```sql
+update public.profiles
+set role = 'admin'
+where id = (select id from auth.users where email = 'admin@example.com');
+```
+The admin screen can then review pending task requests. Approval and point-ledger credit are performed atomically by `admin_review_task_completion()`; members cannot call it successfully.
+ It also backfills profiles for existing Auth users. Signup links may carry a referral code; valid attribution is recorded as a pending referral, with no automatic reward. Starter tasks are inserted as inactive until each task has a real completion verifier and anti-abuse review. The daily reward RPC records its award atomically in the database ledger and enforces one claim per Baghdad day. Task completion requests remain pending and do not award points automatically. Direct client inserts into task completions are disabled; requests must use the validation RPC.
 
 ## Deploy to Netlify
 - Build command: `npm run build`
@@ -63,6 +71,7 @@ Until those prerequisites exist, redemption remains disabled. Do not collect car
 - Clients cannot write point-ledger entries or approve tasks.
 - Daily claims are limited by a unique user/date constraint and a transactional RPC.
 - Task completion requests are validated against active tasks in a security-definer RPC.
+- Admin task approvals are role-checked and award points atomically with the status update.
 - Referral attribution is recorded at signup only; qualification and rewards still require trusted server-side workflows and audit logs.
 - Real admin approval, redemptions and payouts still require trusted server-side workflows and audit logs.
 
