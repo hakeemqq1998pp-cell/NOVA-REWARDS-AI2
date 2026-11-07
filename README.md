@@ -7,7 +7,7 @@ Mobile-first rewards platform starter built with React, Vite and Supabase.
 - Responsive member dashboard
 - Task catalogue preview and demo progress
 - Points wallet and activity preview
-- Referral link preview (share-link preview only; referral qualification is not active)
+- Personal referral codes with signup attribution; referrals are recorded as pending and never auto-award points
 - Email magic-link authentication when Supabase is configured
 - Supabase schema with Row Level Security
 - Database-backed daily reward (25 demo points, one claim per Baghdad calendar day)
@@ -34,7 +34,7 @@ Then configure Supabase Authentication:
 - Add the deployed site URL and local development URL to the allowed redirect URLs.
 - Confirm the email provider is configured and test signup/sign-in.
 
-The profile trigger creates member profiles only; it never grants admin privileges or awards points. Starter tasks are inserted as inactive until each task has a real completion verifier and anti-abuse review. The daily reward RPC records its award atomically in the database ledger and enforces one claim per Baghdad day. Task completion requests remain pending and do not award points automatically. Direct client inserts into task completions are disabled; requests must use the validation RPC.
+The profile trigger creates member profiles only; it never grants admin privileges or awards points. It also backfills profiles for existing Auth users. Signup links may carry a referral code; valid attribution is recorded as a pending referral, with no automatic reward. Starter tasks are inserted as inactive until each task has a real completion verifier and anti-abuse review. The daily reward RPC records its award atomically in the database ledger and enforces one claim per Baghdad day. Task completion requests remain pending and do not award points automatically. Direct client inserts into task completions are disabled; requests must use the validation RPC.
 
 ## Deploy to Netlify
 - Build command: `npm run build`
@@ -63,7 +63,8 @@ Until those prerequisites exist, redemption remains disabled. Do not collect car
 - Clients cannot write point-ledger entries or approve tasks.
 - Daily claims are limited by a unique user/date constraint and a transactional RPC.
 - Task completion requests are validated against active tasks in a security-definer RPC.
-- Real admin approval, referral qualification, redemptions and payouts still require trusted server-side workflows and audit logs.
+- Referral attribution is recorded at signup only; qualification and rewards still require trusted server-side workflows and audit logs.
+- Real admin approval, redemptions and payouts still require trusted server-side workflows and audit logs.
 
 ## Structure
 - `src/App.jsx` — screens and demo interactions
