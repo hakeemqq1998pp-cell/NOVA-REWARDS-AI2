@@ -31,7 +31,7 @@ const copy = {
     password:"كلمة المرور", create:"إنشاء حساب", signInHint:"استخدم بريدك للبدء. يتطلب الحساب الحقيقي إعداد Supabase.",
     authError:"تعذر إكمال العملية. تحقق من إعدادات Supabase والبريد.",
     loginSuccess:"تم إرسال رابط التحقق إلى بريدك إذا كان إعداد المصادقة مفعلاً.",
-    close:"إغلاق", pointsLabel:"النقاط", progress:"تقدمك", secure:"مكافآت بشفافية وأمان",
+    close:"إغلاق", pointsLabel:"النقاط", progress:"تقدمك", secure:"مكافآت بشفافية وأمان", noActivity:"لا توجد حركات بعد.",
     adminNote:"لوحة الإدارة ستتطلب حساباً بصلاحية admin في قاعدة البيانات."
   },
   en: {
@@ -57,7 +57,7 @@ const copy = {
     password:"Password", create:"Create account", signInHint:"Use your email to get started. Real accounts require Supabase setup.",
     authError:"Could not complete the request. Check Supabase and email settings.",
     loginSuccess:"A verification link was sent if authentication is enabled.",
-    close:"Close", pointsLabel:"Points", progress:"Your progress", secure:"Transparent, safer rewards",
+    close:"Close", pointsLabel:"Points", progress:"Your progress", secure:"Transparent, safer rewards", noActivity:"No activity yet.",
     adminNote:"Admin access requires an admin role in the database."
   }
 };
@@ -240,9 +240,9 @@ export default function App() {
         </>}
 
         {tab==="tasks" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.discover}</h2><p>{t.available}</p></div><span className="soft-pill">{visibleTasks.length} {isAr?"مهام":"tasks"}</span></div>{visibleTasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={Boolean(taskStatus(task.id))} status={taskStatus(task.id)} onStart={()=>completeTask(task.id)}/>)}</section>}
-        {tab==="wallet" && <section className="panel wallet-page"><div className="wallet-hero"><div><span>{t.points}</span><h2>{points.toLocaleString()} <small>{t.pointsUnit}</small></h2><p>{t.noCash}</p></div><div className="wallet-graphic"><Wallet size={52}/></div></div><div className="section-head"><div><h2>{t.walletTitle}</h2><p>{t.walletText}</p></div></div><ActivityList done={done} daily={daily} t={t}/><button className="primary-btn disabled-btn" disabled><ArrowDownToLine size={17}/>{t.redeem}</button></section>}
+        {tab==="wallet" && <section className="panel wallet-page"><div className="wallet-hero"><div><span>{t.points}</span><h2>{points.toLocaleString()} <small>{t.pointsUnit}</small></h2><p>{t.noCash}</p></div><div className="wallet-graphic"><Wallet size={52}/></div></div><div className="section-head"><div><h2>{t.walletTitle}</h2><p>{t.walletText}</p></div></div><ActivityList done={done} daily={daily} t={t} user={Boolean(user)} ledgerEntries={ledgerEntries}/><button className="primary-btn disabled-btn" disabled><ArrowDownToLine size={17}/>{t.redeem}</button></section>}
         {tab==="referrals" && <section className="panel page-panel referral-page"><div className="ref-illustration"><Users size={48}/></div><h2>{t.referralTitle}</h2><p>{t.referralText}</p><button className="primary-btn" onClick={copyReferral}>{copied?<Check/>:<ArrowUpRight/>}{copied?t.copied:t.copy}</button><small>{t.demoNotice}</small></section>}
-        {tab==="history" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.recent}</h2><p>{t.demo}</p></div></div><ActivityList done={done} daily={daily} t={t}/></section>}
+        {tab==="history" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.recent}</h2><p>{t.demo}</p></div></div><ActivityList done={done} daily={daily} t={t} user={Boolean(user)} ledgerEntries={ledgerEntries}/></section>}
       </div>
       <footer><span>© 2026 NOVA REWARDS</span><span>{t.demo} · v1.0.0</span></footer>
     </main>
@@ -267,6 +267,6 @@ function ActivityList({done,daily,t,user,ledgerEntries}) {
   const entries = user
     ? (ledgerEntries || []).map(row => ({name:row.reason === "daily_reward" ? t.daily : row.reason, points:Number(row.amount || 0)}))
     : [...(daily?[{name:t.daily,points:25}]:[]),...done.map(id=>({name:t[tasks.find(x=>x.id===id)?.titleKey],points:tasks.find(x=>x.id===id)?.points||0}))];
-  if(!entries.length) return <div className="empty-state"><Activity size={24}/><p>{t.demo}</p></div>;
+  if(!entries.length) return <div className="empty-state"><Activity size={24}/><p>{t.noActivity}</p></div>;
   return <div className="activity-list">{entries.map((x,i)=><div className="activity-row" key={i}><div className="activity-check"><Check size={16}/></div><b>{x.name}</b><span>{x.points>0?"+":""}{x.points} {t.pointsUnit}</span></div>)}</div>;
 }
