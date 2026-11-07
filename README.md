@@ -5,8 +5,8 @@ Mobile-first rewards platform starter built with React, Vite and Supabase.
 ## Included in v1
 - Arabic RTL and English LTR interface
 - Responsive member dashboard
-- Task catalogue preview and demo progress
-- Points wallet and activity preview
+- Live active-task catalogue for signed-in members, with a local-only demo preview for visitors
+- Database-backed points balance and recent ledger activity for signed-in members
 - Personal referral codes with signup attribution; referrals are recorded as pending and never auto-award points
 - Email magic-link authentication when Supabase is configured
 - Supabase schema with Row Level Security
