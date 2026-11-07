@@ -32,7 +32,7 @@ const copy = {
     authError:"تعذر إكمال العملية. تحقق من إعدادات Supabase والبريد.",
     loginSuccess:"تم إرسال رابط التحقق إلى بريدك إذا كان إعداد المصادقة مفعلاً.",
     close:"إغلاق", pointsLabel:"النقاط", progress:"تقدمك", secure:"مكافآت بشفافية وأمان", noActivity:"لا توجد حركات بعد.",
-    adminNote:"لوحة الإدارة تتطلب حساباً بصلاحية admin في قاعدة البيانات.", approve:"موافقة", reject:"رفض", noPending:"لا توجد طلبات معلقة.", reviewTitle:"طلبات مراجعة المهام"
+    adminNote:"لوحة الإدارة تتطلب حساباً بصلاحية admin في قاعدة البيانات.", approve:"موافقة", reject:"رفض", noPending:"لا توجد طلبات معلقة.", reviewTitle:"طلبات مراجعة المهام", evidenceTitle:"إثبات إنجاز المهمة", evidenceHint:"اشرح ما أنجزته بوضوح (10 إلى 2000 حرف).", sendReview:"إرسال للمراجعة", evidenceRequired:"أدخل وصفاً لا يقل عن 10 أحرف ولا يزيد عن 2000 حرف."
   },
   en: {
     brand:"NOVA REWARDS", tagline:"Every action brings you closer",
@@ -58,7 +58,7 @@ const copy = {
     authError:"Could not complete the request. Check Supabase and email settings.",
     loginSuccess:"A verification link was sent if authentication is enabled.",
     close:"Close", pointsLabel:"Points", progress:"Your progress", secure:"Transparent, safer rewards", noActivity:"No activity yet.",
-    adminNote:"Admin access requires an admin role in the database.", approve:"Approve", reject:"Reject", noPending:"No pending requests.", reviewTitle:"Task review queue"
+    adminNote:"Admin access requires an admin role in the database.", approve:"Approve", reject:"Reject", noPending:"No pending requests.", reviewTitle:"Task review queue", evidenceTitle:"Task completion evidence", evidenceHint:"Clearly describe what you completed (10 to 2000 characters).", sendReview:"Submit for review", evidenceRequired:"Enter between 10 and 2000 characters."
   }
 };
 
@@ -92,6 +92,9 @@ export default function App() {
   const [isAdmin,setIsAdmin] = useState(false);
   const [pendingReviews,setPendingReviews] = useState([]);
   const [reviewBusy,setReviewBusy] = useState("");
+  const [selectedTask,setSelectedTask] = useState(null);
+  const [taskEvidence,setTaskEvidence] = useState("");
+  const [taskSubmitBusy,setTaskSubmitBusy] = useState(false);
   const [dailyBusy,setDailyBusy] = useState(false);
   const [daily,setDaily] = useState(false);
   const [mobileOpen,setMobileOpen] = useState(false);
@@ -140,7 +143,7 @@ export default function App() {
       setIsAdmin(admin);
       if (admin) {
         const {data: reviews, error: reviewError} = await supabase.from("task_completions")
-          .select("id,user_id,task_id,created_at,tasks(title,points)")
+          .select("id,user_id,task_id,evidence_text,created_at,tasks(title,points)")
           .eq("status", "pending").order("created_at", {ascending:true});
         if (alive) setPendingReviews(reviewError ? [] : (reviews || []));
       } else {
@@ -209,17 +212,34 @@ export default function App() {
     catch { setMessage(link); }
   }
 
-  async function completeTask(id) {
+  function completeTask(id) {
     if (user && supabase) {
       if (requestedTaskStatuses[id]) return;
-      const {error} = await supabase.rpc("request_task_completion", {p_task_id:id});
-      if (error) { setMessage(error.message || t.authError); return; }
-      setRequestedTaskStatuses(old => ({...old, [id]:"pending"}));
-      setMessage(isAr ? "تم إرسال المهمة للمراجعة. لم تُضف نقاط بعد." : "Task submitted for review. No points have been awarded yet.");
+      setSelectedTask(id);
+      setTaskEvidence("");
+      setModal("task-evidence");
       return;
     }
     if (!done.includes(id)) setDone(old=>[...old,id]);
     setMessage(t.demoNotice);
+  }
+
+  async function submitTaskEvidence(e) {
+    e.preventDefault();
+    const evidence = taskEvidence.trim();
+    if (!selectedTask || evidence.length < 10 || evidence.length > 2000) {
+      setMessage(t.evidenceRequired);
+      return;
+    }
+    setTaskSubmitBusy(true);
+    const {error} = await supabase.rpc("request_task_completion", {p_task_id:selectedTask, p_evidence:evidence});
+    setTaskSubmitBusy(false);
+    if (error) { setMessage(error.message || t.authError); return; }
+    setRequestedTaskStatuses(old => ({...old, [selectedTask]:"pending"}));
+    setModal("");
+    setSelectedTask(null);
+    setTaskEvidence("");
+    setMessage(isAr ? "تم إرسال الإثبات للمراجعة. لم تُضف نقاط بعد." : "Evidence submitted for review. No points have been awarded yet.");
   }
 
   const sidebar = (
@@ -271,9 +291,10 @@ export default function App() {
       <footer><span>© 2026 NOVA REWARDS</span><span>{t.demo} · v1.0.0</span></footer>
     </main>
 
-    {modal && <div className="modal-backdrop" onClick={()=>setModal("")}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-head"><h2>{modal==="auth"?t.signIn:modal==="admin"?t.admin:t.settings}</h2><button className="icon-btn" onClick={()=>setModal("")}><X/></button></div>
+    {modal && <div className="modal-backdrop" onClick={()=>setModal("")}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-head"><h2>{modal==="auth"?t.signIn:modal==="admin"?t.admin:modal==="task-evidence"?t.evidenceTitle:t.settings}</h2><button className="icon-btn" onClick={()=>setModal("")}><X/></button></div>
+      {modal==="task-evidence" && <form onSubmit={submitTaskEvidence}><p>{t.evidenceHint}</p><textarea required minLength="10" maxLength="2000" rows="5" value={taskEvidence} onChange={e=>setTaskEvidence(e.target.value)} placeholder={t.evidenceHint}/><button className="primary-btn full" disabled={taskSubmitBusy}>{taskSubmitBusy?"…":t.sendReview}</button></form>}
       {modal==="auth" && <form onSubmit={authenticate}><p>{t.signInHint}</p><label>{t.email}<input type="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/></label><label>{t.password}<input type="password" minLength="6" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" disabled/></label><small>{isAr?"تسجيل الدخول برابط آمن إلى البريد؛ حقل كلمة المرور للمرحلة اللاحقة.":"Password sign-in will be enabled in a later release; email link is used now."}</small><button className="primary-btn full" disabled={authBusy}>{authBusy?"…":t.signIn}</button>{message&&<div className="form-message">{message}</div>}</form>}
-      {modal==="admin" && <div className="modal-body">{!isAdmin ? <p>{t.adminNote}</p> : <><h3>{t.reviewTitle}</h3>{!pendingReviews.length ? <p>{t.noPending}</p> : pendingReviews.map(item=><div className="activity-row" key={item.id}><div><b>{item.tasks?.title || item.task_id}</b><small>{item.user_id}</small></div><span>+{item.tasks?.points || 0}</span><button className="primary-btn" disabled={Boolean(reviewBusy)} onClick={()=>reviewTask(item.id,"approved")}>{reviewBusy===item.id?"…":t.approve}</button><button className="secondary-btn" disabled={Boolean(reviewBusy)} onClick={()=>reviewTask(item.id,"rejected")}>{t.reject}</button></div>)}</>}<p className="muted">{t.noCash}</p></div>}
+      {modal==="admin" && <div className="modal-body">{!isAdmin ? <p>{t.adminNote}</p> : <><h3>{t.reviewTitle}</h3>{!pendingReviews.length ? <p>{t.noPending}</p> : pendingReviews.map(item=><div className="activity-row" key={item.id}><div><b>{item.tasks?.title || item.task_id}</b><small>{item.user_id}<br/>{item.evidence_text}</small></div><span>+{item.tasks?.points || 0}</span><button className="primary-btn" disabled={Boolean(reviewBusy)} onClick={()=>reviewTask(item.id,"approved")}>{reviewBusy===item.id?"…":t.approve}</button><button className="secondary-btn" disabled={Boolean(reviewBusy)} onClick={()=>reviewTask(item.id,"rejected")}>{t.reject}</button></div>)}</>}<p className="muted">{t.noCash}</p></div>}
       {modal==="settings" && <div className="modal-body"><p>{t.backend}: <b>{backendReady?t.connected:t.notConnected}</b></p><button className="secondary-btn" onClick={()=>setLang(lang==="ar"?"en":"ar")}><Globe2 size={16}/>{t.language}: {lang.toUpperCase()}</button><p className="muted">{t.demoNotice}</p></div>}
     </div></div>}
     {message && <div className="toast" role="status">{message}<button onClick={()=>setMessage("")}><X size={15}/></button></div>}
