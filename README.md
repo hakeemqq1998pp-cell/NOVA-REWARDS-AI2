@@ -23,8 +23,11 @@ Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env` to enable Supabas
 ## Supabase setup
 1. Create a Supabase project.
 2. Open SQL Editor and run `supabase/schema.sql`.
-3. Add the project URL and anon/public key to the deployment environment.
-4. Configure email authentication and redirect URLs.
+3. Run `supabase/profile-bootstrap.sql` to create a safe member profile automatically after signup.
+4. Add the project URL and anon/public key to the deployment environment.
+5. Configure email authentication and redirect URLs.
+
+The profile bootstrap migration does not grant admin privileges or award points. Starter tasks are inserted as inactive until verified completion checks are implemented.
 
 ## Deploy to Netlify
 - Build command: `npm run build`
@@ -40,3 +43,4 @@ This repository is an initial starter build, not a live cash-rewards service. De
 - `src/styles.css` — responsive visual system
 - `src/lib/supabase.js` — optional Supabase client
 - `supabase/schema.sql` — initial database schema
+- `supabase/profile-bootstrap.sql` — automatic member-profile creation
