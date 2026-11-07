@@ -32,7 +32,7 @@ const copy = {
     authError:"تعذر إكمال العملية. تحقق من إعدادات Supabase والبريد.",
     loginSuccess:"تم إرسال رابط التحقق إلى بريدك إذا كان إعداد المصادقة مفعلاً.",
     close:"إغلاق", pointsLabel:"النقاط", progress:"تقدمك", secure:"مكافآت بشفافية وأمان", noActivity:"لا توجد حركات بعد.",
-    adminNote:"لوحة الإدارة ستتطلب حساباً بصلاحية admin في قاعدة البيانات."
+    adminNote:"لوحة الإدارة تتطلب حساباً بصلاحية admin في قاعدة البيانات.", approve:"موافقة", reject:"رفض", noPending:"لا توجد طلبات معلقة.", reviewTitle:"طلبات مراجعة المهام"
   },
   en: {
     brand:"NOVA REWARDS", tagline:"Every action brings you closer",
@@ -58,7 +58,7 @@ const copy = {
     authError:"Could not complete the request. Check Supabase and email settings.",
     loginSuccess:"A verification link was sent if authentication is enabled.",
     close:"Close", pointsLabel:"Points", progress:"Your progress", secure:"Transparent, safer rewards", noActivity:"No activity yet.",
-    adminNote:"Admin access requires an admin role in the database."
+    adminNote:"Admin access requires an admin role in the database.", approve:"Approve", reject:"Reject", noPending:"No pending requests.", reviewTitle:"Task review queue"
   }
 };
 
@@ -89,6 +89,9 @@ export default function App() {
   const [activeTasks,setActiveTasks] = useState(null);
   const [requestedTaskStatuses,setRequestedTaskStatuses] = useState({});
   const [qualifiedReferrals,setQualifiedReferrals] = useState(0);
+  const [isAdmin,setIsAdmin] = useState(false);
+  const [pendingReviews,setPendingReviews] = useState([]);
+  const [reviewBusy,setReviewBusy] = useState("");
   const [dailyBusy,setDailyBusy] = useState(false);
   const [daily,setDaily] = useState(false);
   const [mobileOpen,setMobileOpen] = useState(false);
@@ -115,10 +118,10 @@ export default function App() {
   const points = ledgerPoints ?? demoPoints;
 
   useEffect(() => {
-    if (!supabase || !user) { setLedgerPoints(null); setLedgerEntries([]); setActiveTasks(null); setRequestedTaskStatuses({}); setQualifiedReferrals(0); setDaily(false); return; }
+    if (!supabase || !user) { setLedgerPoints(null); setLedgerEntries([]); setActiveTasks(null); setRequestedTaskStatuses({}); setQualifiedReferrals(0); setIsAdmin(false); setPendingReviews([]); setDaily(false); return; }
     let alive = true;
     (async () => {
-      const [{data: ledger, error: ledgerError}, {data: claims, error: claimError}, {data: taskRows, error: taskError}, {data: completionRows, error: completionError}, {data: referralRows, error: referralError}] = await Promise.all([
+      const [{data: ledger, error: ledgerError}, {data: claims, error: claimError}, {data: taskRows, error: taskError}, {data: completionRows, error: completionError}, {data: referralRows, error: referralError}, {data: profile, error: profileError}] = await Promise.all([
         supabase.from("point_ledger").select("amount,reason,created_at").order("created_at", {ascending:false}).limit(20),
         supabase.from("daily_claims").select("id").eq("claim_date", baghdadDateKey()).limit(1),
         supabase.from("tasks").select("id,title,description,points,task_type").eq("is_active", true).order("created_at", {ascending:true}),
@@ -132,6 +135,16 @@ export default function App() {
       setActiveTasks(taskError ? [] : (taskRows || []).map(row => ({...row, icon: Target, color:"violet", title:row.title, description:row.description || ""})));
       if (!completionError) setRequestedTaskStatuses(Object.fromEntries((completionRows || []).map(row => [row.task_id, row.status]))); 
       setQualifiedReferrals(referralError ? 0 : (referralRows || []).filter(row => row.status === "qualified").length);
+      const admin = !profileError && profile?.role === "admin";
+      setIsAdmin(admin);
+      if (admin) {
+        const {data: reviews, error: reviewError} = await supabase.from("task_completions")
+          .select("id,user_id,task_id,created_at,tasks(title,points)")
+          .eq("status", "pending").order("created_at", {ascending:true});
+        if (alive) setPendingReviews(reviewError ? [] : (reviews || []));
+      } else {
+        setPendingReviews([]);
+      }
     })();
     return () => { alive = false; };
   }, [user]);
@@ -158,6 +171,16 @@ export default function App() {
 
   const visibleTasks = user ? (activeTasks ?? []) : tasks;
   const taskStatus = id => user ? (requestedTaskStatuses[id] || "") : (done.includes(id) ? "approved" : "");
+
+  async function reviewTask(completionId, decision) {
+    if (!isAdmin || reviewBusy) return;
+    setReviewBusy(completionId);
+    const {error} = await supabase.rpc("admin_review_task_completion", {p_completion_id:completionId, p_decision:decision});
+    setReviewBusy("");
+    if (error) { setMessage(error.message || t.authError); return; }
+    setPendingReviews(old => old.filter(item => item.id !== completionId));
+    setMessage(isAr ? "تم حفظ قرار المراجعة وتحديث سجل النقاط عند الموافقة." : "Review saved; points were ledgered only if approved.");
+  }
 
   async function claimDaily() {
     if (dailyBusy || daily) return;
@@ -249,7 +272,7 @@ export default function App() {
 
     {modal && <div className="modal-backdrop" onClick={()=>setModal("")}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-head"><h2>{modal==="auth"?t.signIn:modal==="admin"?t.admin:t.settings}</h2><button className="icon-btn" onClick={()=>setModal("")}><X/></button></div>
       {modal==="auth" && <form onSubmit={authenticate}><p>{t.signInHint}</p><label>{t.email}<input type="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/></label><label>{t.password}<input type="password" minLength="6" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" disabled/></label><small>{isAr?"تسجيل الدخول برابط آمن إلى البريد؛ حقل كلمة المرور للمرحلة اللاحقة.":"Password sign-in will be enabled in a later release; email link is used now."}</small><button className="primary-btn full" disabled={authBusy}>{authBusy?"…":t.signIn}</button>{message&&<div className="form-message">{message}</div>}</form>}
-      {modal==="admin" && <div className="modal-body"><p>{t.adminNote}</p><p className="muted">{t.noCash}</p></div>}
+      {modal==="admin" && <div className="modal-body">{!isAdmin ? <p>{t.adminNote}</p> : <><h3>{t.reviewTitle}</h3>{!pendingReviews.length ? <p>{t.noPending}</p> : pendingReviews.map(item=><div className="activity-row" key={item.id}><div><b>{item.tasks?.title || item.task_id}</b><small>{item.user_id}</small></div><span>+{item.tasks?.points || 0}</span><button className="primary-btn" disabled={Boolean(reviewBusy)} onClick={()=>reviewTask(item.id,"approved")}>{reviewBusy===item.id?"…":t.approve}</button><button className="secondary-btn" disabled={Boolean(reviewBusy)} onClick={()=>reviewTask(item.id,"rejected")}>{t.reject}</button></div>)}</>}<p className="muted">{t.noCash}</p></div>}
       {modal==="settings" && <div className="modal-body"><p>{t.backend}: <b>{backendReady?t.connected:t.notConnected}</b></p><button className="secondary-btn" onClick={()=>setLang(lang==="ar"?"en":"ar")}><Globe2 size={16}/>{t.language}: {lang.toUpperCase()}</button><p className="muted">{t.demoNotice}</p></div>}
     </div></div>}
     {message && <div className="toast" role="status">{message}<button onClick={()=>setMessage("")}><X size={15}/></button></div>}
