@@ -7,9 +7,11 @@ Mobile-first rewards platform starter built with React, Vite and Supabase.
 - Responsive member dashboard
 - Task catalogue preview and demo progress
 - Points wallet and activity preview
-- Referral link preview
+- Referral link preview (share-link preview only; referral qualification is not active)
 - Email magic-link authentication when Supabase is configured
-- Initial Supabase schema with Row Level Security policies
+- Supabase schema with Row Level Security
+- Database-backed daily reward (25 demo points, one claim per Baghdad calendar day)
+- Secure task-review request RPC; requests remain pending and do not award points
 
 ## Run locally
 ```bash
@@ -18,29 +20,55 @@ cp .env.example .env
 npm run dev
 ```
 
-Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env` to enable Supabase email authentication.
+Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env` to enable Supabase email authentication. Use only the Supabase anon/public key in frontend settings. Never expose the service-role key.
 
 ## Supabase setup
-1. Create a Supabase project.
-2. Open SQL Editor and run `supabase/schema.sql`.
-3. Run `supabase/profile-bootstrap.sql` to create a safe member profile automatically after signup.
-4. Add the project URL and anon/public key to the deployment environment.
-5. Configure email authentication and redirect URLs.
+Run these scripts in the Supabase SQL Editor in this exact order:
 
-The profile bootstrap migration does not grant admin privileges or award points. Starter tasks are inserted as inactive until verified completion checks are implemented. The daily reward RPC records its award in the database ledger and enforces one claim per Baghdad day. Task completion requests remain pending and do not award points automatically.
+1. `supabase/schema.sql`
+2. `supabase/profile-bootstrap.sql`
+3. `supabase/secure-actions.sql`
+
+Then configure Supabase Authentication:
+- Enable email magic-link authentication.
+- Add the deployed site URL and local development URL to the allowed redirect URLs.
+- Confirm the email provider is configured and test signup/sign-in.
+
+The profile trigger creates member profiles only; it never grants admin privileges or awards points. Starter tasks are inserted as inactive until each task has a real completion verifier and anti-abuse review. The daily reward RPC records its award atomically in the database ledger and enforces one claim per Baghdad day. Task completion requests remain pending and do not award points automatically. Direct client inserts into task completions are disabled; requests must use the validation RPC.
 
 ## Deploy to Netlify
 - Build command: `npm run build`
 - Publish directory: `dist`
 - Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as Netlify environment variables.
+- Add the Netlify site URL to Supabase Auth redirect URLs.
 - Redeploy after setting environment variables.
 
-## Production requirements
-This repository is an initial starter build, not a live cash-rewards service. Demo points are not money and cannot be withdrawn. Real ads, offerwalls, AI billing, referral qualification, point approvals, redemption and payouts require approved providers, server-side integrations, fraud controls, legal review and operational funding. Never expose Supabase service-role credentials in the browser.
+A GitHub Actions build check runs on pushes to `main` and `nova-v1-build`, and on pull requests targeting `main`.
+
+## Payments, ads and real rewards
+This repository is a starter application, not a live cash-rewards service. Points shown in demo mode are not money and cannot be withdrawn. No payment processor, bank/mobile-wallet payout, ad network, offerwall or paid AI provider is currently connected.
+
+A real payment or payout integration cannot safely be enabled without:
+- a verified merchant/business account and provider approval,
+- API credentials and webhook secrets supplied by the account owner,
+- a server-side integration (never browser-exposed secrets),
+- payout rules, identity/anti-fraud controls, reconciliation and legal review,
+- a funded settlement balance.
+
+Until those prerequisites exist, redemption remains disabled. Do not collect card details, wallet PINs, OTPs or passwords in this app. Do not advertise demo points as cash value.
+
+## Security notes
+- RLS is enabled on member, task, ledger, redemption and referral tables.
+- Members cannot grant themselves admin privileges.
+- Clients cannot write point-ledger entries or approve tasks.
+- Daily claims are limited by a unique user/date constraint and a transactional RPC.
+- Task completion requests are validated against active tasks in a security-definer RPC.
+- Real admin approval, referral qualification, redemptions and payouts still require trusted server-side workflows and audit logs.
 
 ## Structure
 - `src/App.jsx` — screens and demo interactions
 - `src/styles.css` — responsive visual system
 - `src/lib/supabase.js` — optional Supabase client
-- `supabase/schema.sql` — initial database schema
-- `supabase/profile-bootstrap.sql` — automatic member-profile creation
+- `supabase/schema.sql` — initial schema and RLS
+- `supabase/profile-bootstrap.sql` — member profile creation
+- `supabase/secure-actions.sql` — database-backed member actions
