@@ -119,7 +119,7 @@ export default function App() {
     (async () => {
       const [{data: ledger, error: ledgerError}, {data: claims, error: claimError}, {data: taskRows, error: taskError}, {data: completionRows, error: completionError}, {data: referralRows, error: referralError}] = await Promise.all([
         supabase.from("point_ledger").select("amount"),
-        supabase.from("daily_claims").select("id").eq("claim_date", new Intl.DateTimeFormat("en-CA", {timeZone:"Asia-Baghdad",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())).limit(1),
+        supabase.from("daily_claims").select("id").eq("claim_date", baghdadDateKey()).limit(1),
         supabase.from("tasks").select("id,title,description,points,task_type").eq("is_active", true).order("created_at", {ascending:true}),
         supabase.from("task_completions").select("task_id,status"),
         supabase.from("referrals").select("id,status").eq("inviter_id", user.id)
