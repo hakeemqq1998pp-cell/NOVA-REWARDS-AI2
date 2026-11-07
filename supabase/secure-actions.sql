@@ -101,8 +101,8 @@ returns table(completion_id uuid, new_status text, points_awarded integer)
 language plpgsql
 security definer
 set search_path = public
-as $
-declare
+as $$
+eclare
   v_admin uuid := auth.uid();
   v_user_id uuid;
   v_task_id uuid;
@@ -156,7 +156,7 @@ begin
 
   return query select p_completion_id, p_decision, v_awarded;
 end;
-$;
+$$;
 
 revoke all on function public.admin_review_task_completion(uuid, text) from public;
 grant execute on function public.admin_review_task_completion(uuid, text) to authenticated;
