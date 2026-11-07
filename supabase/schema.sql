@@ -119,25 +119,31 @@ grant select on table public.point_ledger to authenticated;
 grant select, insert on table public.redemption_requests to authenticated;
 grant select on table public.referrals to authenticated;
 
+drop policy if exists "profiles read own" on public.profiles;
 create policy "profiles read own" on public.profiles
   for select to authenticated using (auth.uid() = id);
 
 -- A member cannot create an admin profile or promote themselves.
+drop policy if exists "profiles insert own member" on public.profiles;
 create policy "profiles insert own member" on public.profiles
   for insert to authenticated with check (auth.uid() = id and role = 'member');
 
 -- No client-side profile role updates. Add a narrowly scoped display_name
 -- update policy later if needed; role changes belong to trusted admin tooling.
 
+drop policy if exists "active tasks visible" on public.tasks;
 create policy "active tasks visible" on public.tasks
   for select to authenticated using (is_active = true);
 
+drop policy if exists "admins read all tasks" on public.tasks;
 create policy "admins read all tasks" on public.tasks
   for select to authenticated using (public.is_nova_admin());
 
+drop policy if exists "users read own completions" on public.task_completions;
 create policy "users read own completions" on public.task_completions
   for select to authenticated using (auth.uid() = user_id);
 
+drop policy if exists "admins read all completions" on public.task_completions;
 create policy "admins read all completions" on public.task_completions
   for select to authenticated using (public.is_nova_admin());
 
@@ -145,15 +151,19 @@ create policy "admins read all completions" on public.task_completions
 -- This prevents clients from bypassing the active-task check in that RPC.
 drop policy if exists "users create own completion requests" on public.task_completions;
 
+drop policy if exists "users read own ledger" on public.point_ledger;
 create policy "users read own ledger" on public.point_ledger
   for select to authenticated using (auth.uid() = user_id);
 
+drop policy if exists "users read own redemption requests" on public.redemption_requests;
 create policy "users read own redemption requests" on public.redemption_requests
   for select to authenticated using (auth.uid() = user_id);
 
+drop policy if exists "users request redemption" on public.redemption_requests;
 create policy "users request redemption" on public.redemption_requests
   for insert to authenticated with check (auth.uid() = user_id and status = 'pending');
 
+drop policy if exists "users read referrals they are part of" on public.referrals;
 create policy "users read referrals they are part of" on public.referrals
   for select to authenticated using (auth.uid() = inviter_id or auth.uid() = invitee_id);
 
