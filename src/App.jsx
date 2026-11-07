@@ -169,9 +169,17 @@ export default function App() {
     catch { setMessage(link); }
   }
 
-  function completeTask(id) {
+  async function completeTask(id) {
+    if (user && supabase) {
+      if (requestedTaskStatuses[id]) return;
+      const {error} = await supabase.rpc("request_task_completion", {p_task_id:id});
+      if (error) { setMessage(error.message || t.authError); return; }
+      setRequestedTaskStatuses(old => ({...old, [id]:"pending"}));
+      setMessage(isAr ? "تم إرسال المهمة للمراجعة. لم تُضف نقاط بعد." : "Task submitted for review. No points have been awarded yet.");
+      return;
+    }
     if (!done.includes(id)) setDone(old=>[...old,id]);
-    setMessage(isAr ? "تم تسجيلها في العرض التجريبي فقط." : "Recorded in this demo preview only.");
+    setMessage(t.demoNotice);
   }
 
   const sidebar = (
@@ -215,7 +223,7 @@ export default function App() {
           <section className="panel activity-panel"><div className="section-head"><div><h2>{t.recent}</h2><p>{t.demo}</p></div><button className="text-btn" onClick={()=>setTab("history")}>{t.all}<ArrowUpRight size={15}/></button></div><ActivityList done={done} daily={daily} t={t}/></section>
         </>}
 
-        {tab==="tasks" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.discover}</h2><p>{t.available}</p></div><span className="soft-pill">{visibleTasks.length} {isAr?"مهام":"tasks"}</span></div>{visibleTasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={user ? requestedTaskIds.includes(task.id) : done.includes(task.id)} onStart={()=>completeTask(task.id)}/>)}</section>}
+        {tab==="tasks" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.discover}</h2><p>{t.available}</p></div><span className="soft-pill">{visibleTasks.length} {isAr?"مهام":"tasks"}</span></div>{visibleTasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={Boolean(taskStatus(task.id))} status={taskStatus(task.id)} onStart={()=>completeTask(task.id)}/>)}</section>}
         {tab==="wallet" && <section className="panel wallet-page"><div className="wallet-hero"><div><span>{t.points}</span><h2>{points.toLocaleString()} <small>{t.pointsUnit}</small></h2><p>{t.noCash}</p></div><div className="wallet-graphic"><Wallet size={52}/></div></div><div className="section-head"><div><h2>{t.walletTitle}</h2><p>{t.walletText}</p></div></div><ActivityList done={done} daily={daily} t={t}/><button className="primary-btn disabled-btn" disabled><ArrowDownToLine size={17}/>{t.redeem}</button></section>}
         {tab==="referrals" && <section className="panel page-panel referral-page"><div className="ref-illustration"><Users size={48}/></div><h2>{t.referralTitle}</h2><p>{t.referralText}</p><button className="primary-btn" onClick={copyReferral}>{copied?<Check/>:<ArrowUpRight/>}{copied?t.copied:t.copy}</button><small>{t.demoNotice}</small></section>}
         {tab==="history" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.recent}</h2><p>{t.demo}</p></div></div><ActivityList done={done} daily={daily} t={t}/></section>}
