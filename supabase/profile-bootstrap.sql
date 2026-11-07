@@ -8,7 +8,10 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $
+declare
+  v_referral_code text;
+  v_inviter_id uuid;
 begin
   insert into public.profiles (id, display_name, referral_code, role)
   values (
@@ -22,6 +25,22 @@ begin
     'member'
   )
   on conflict (id) do nothing;
+
+  -- Record a referral supplied during email-link signup; rewards remain pending
+  -- until a separate trusted qualification process approves them.
+  v_referral_code := upper(nullif(btrim(new.raw_user_meta_data ->> 'referral_code'), ''));
+  if v_referral_code is not null then
+    select id into v_inviter_id
+    from public.profiles
+    where referral_code = v_referral_code and id <> new.id
+    limit 1;
+
+    if v_inviter_id is not null then
+      insert into public.referrals (inviter_id, invitee_id, status)
+      values (v_inviter_id, new.id, 'pending')
+      on conflict (invitee_id) do nothing;
+    end if;
+  end if;
 
   return new;
 end;
