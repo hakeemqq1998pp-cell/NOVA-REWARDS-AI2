@@ -74,12 +74,12 @@ language sql
 stable
 security definer
 set search_path = public
-as $
-  select exists (
+as $$
+ select exists (
     select 1 from public.profiles
     where id = auth.uid() and role = 'admin'
   );
-$;
+$$;
 
 revoke all on function public.is_nova_admin() from public;
 grant execute on function public.is_nova_admin() to authenticated;
