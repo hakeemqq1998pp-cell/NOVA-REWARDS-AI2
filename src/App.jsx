@@ -68,6 +68,12 @@ const tasks = [
   { id:3, icon:Users, color:"orange", points:150, titleKey:"task3", descKey:"task3d", tag:"Invite" }
 ];
 
+function baghdadDateKey(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone:"Asia/Baghdad", year:"numeric", month:"2-digit", day:"2-digit" }).formatToParts(date);
+  const part = type => parts.find(item => item.type === type)?.value || "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
 export default function App() {
   const [lang,setLang] = useState("ar");
   const [tab,setTab] = useState("overview");
@@ -117,7 +123,7 @@ export default function App() {
         supabase.from("task_completions").select("task_id,status")
       ]);
       if (!alive) return;
-      if (!ledgerError) setLedgerPoints((ledger || []).reduce((sum,row)=>sum + Number(row.amount || 0),0));
+      setLedgerPoints(ledgerError ? 0 : (ledger || []).reduce((sum,row)=>sum + Number(row.amount || 0),0));
       if (!claimError) setDaily(Boolean(claims?.length));
       setActiveTasks(taskError ? [] : (taskRows || []).map(row => ({...row, icon: Target, color:"violet", title:row.title, description:row.description || ""})));
       if (!completionError) setRequestedTaskStatuses(Object.fromEntries((completionRows || []).map(row => [row.task_id, row.status])));
@@ -210,7 +216,7 @@ export default function App() {
           <section className="stats-grid">
             <Stat icon={Coins} label={t.points} value={points.toLocaleString()} suffix={t.pointsUnit} tone="purple" trend={t.progress}/>
             <Stat icon={TrendingUp} label={t.earned} value={points.toLocaleString()} suffix={t.pointsUnit} tone="blue" trend={t.demo}/>
-            <Stat icon={Target} label={t.completed} value={done.length} suffix="" tone="orange" trend={t.progress}/>
+            <Stat icon={Target} label={t.completed} value={user ? Object.values(requestedTaskStatuses).filter(status=>status==="approved").length : done.length} suffix="" tone="orange" trend={t.progress}/>
             <Stat icon={Users} label={t.invites} value="0" suffix="" tone="green" trend={t.demo}/>
           </section>
           <section className="feature-grid">
