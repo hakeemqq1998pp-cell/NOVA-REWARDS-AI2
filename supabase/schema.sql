@@ -83,8 +83,9 @@ create policy "active tasks visible" on public.tasks
 create policy "users read own completions" on public.task_completions
   for select to authenticated using (auth.uid() = user_id);
 
-create policy "users create own completion requests" on public.task_completions
-  for insert to authenticated with check (auth.uid() = user_id and status = 'pending' and points_awarded = 0);
+-- Completion requests are inserted only through request_task_completion().
+-- This prevents clients from bypassing the active-task check in that RPC.
+drop policy if exists "users create own completion requests" on public.task_completions;
 
 create policy "users read own ledger" on public.point_ledger
   for select to authenticated using (auth.uid() = user_id);
