@@ -87,6 +87,7 @@ export default function App() {
   const [ledgerPoints,setLedgerPoints] = useState(null);
   const [activeTasks,setActiveTasks] = useState(null);
   const [requestedTaskStatuses,setRequestedTaskStatuses] = useState({});
+  const [qualifiedReferrals,setQualifiedReferrals] = useState(0);
   const [dailyBusy,setDailyBusy] = useState(false);
   const [daily,setDaily] = useState(false);
   const [mobileOpen,setMobileOpen] = useState(false);
@@ -113,10 +114,10 @@ export default function App() {
   const points = ledgerPoints ?? demoPoints;
 
   useEffect(() => {
-    if (!supabase || !user) { setLedgerPoints(null); setActiveTasks(null); setRequestedTaskStatuses({}); setDaily(false); return; }
+    if (!supabase || !user) { setLedgerPoints(null); setActiveTasks(null); setRequestedTaskStatuses({}); setQualifiedReferrals(0); setDaily(false); return; }
     let alive = true;
     (async () => {
-      const [{data: ledger, error: ledgerError}, {data: claims, error: claimError}, {data: taskRows, error: taskError}, {data: completionRows, error: completionError}] = await Promise.all([
+      const [{data: ledger, error: ledgerError}, {data: claims, error: claimError}, {data: taskRows, error: taskError}, {data: completionRows, error: completionError}, {data: referralRows, error: referralError}] = await Promise.all([
         supabase.from("point_ledger").select("amount"),
         supabase.from("daily_claims").select("id").eq("claim_date", new Intl.DateTimeFormat("en-CA", {timeZone:"Asia-Baghdad",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())).limit(1),
         supabase.from("tasks").select("id,title,description,points,task_type").eq("is_active", true).order("created_at", {ascending:true}),
@@ -126,7 +127,7 @@ export default function App() {
       setLedgerPoints(ledgerError ? 0 : (ledger || []).reduce((sum,row)=>sum + Number(row.amount || 0),0));
       if (!claimError) setDaily(Boolean(claims?.length));
       setActiveTasks(taskError ? [] : (taskRows || []).map(row => ({...row, icon: Target, color:"violet", title:row.title, description:row.description || ""})));
-      if (!completionError) setRequestedTaskStatuses(Object.fromEntries((completionRows || []).map(row => [row.task_id, row.status])));
+      if (!completionError) setRequestedTaskStatuses(Object.fromEntries((completionRows || []).map(row => [row.task_id, row.status])));\n      setQualifiedReferrals(referralError ? 0 : (referralRows || []).filter(row => row.status === "qualified").length);
     })();
     return () => { alive = false; };
   }, [user]);
@@ -222,7 +223,7 @@ export default function App() {
             <Stat icon={Coins} label={t.points} value={points.toLocaleString()} suffix={t.pointsUnit} tone="purple" trend={t.progress}/>
             <Stat icon={TrendingUp} label={t.earned} value={points.toLocaleString()} suffix={t.pointsUnit} tone="blue" trend={t.demo}/>
             <Stat icon={Target} label={t.completed} value={user ? Object.values(requestedTaskStatuses).filter(status=>status==="approved").length : done.length} suffix="" tone="orange" trend={t.progress}/>
-            <Stat icon={Users} label={t.invites} value="0" suffix="" tone="green" trend={t.demo}/>
+            <Stat icon={Users} label={t.invites} value={user ? qualifiedReferrals : 0} suffix="" tone="green" trend={t.demo}/>
           </section>
           <section className="feature-grid">
             <div className="panel tasks-panel"><div className="section-head"><div><h2>{t.discover}</h2><p>{t.available}</p></div><button className="text-btn" onClick={()=>setTab("tasks")}>{t.seeAll}<ArrowUpRight size={15}/></button></div>
