@@ -67,6 +67,23 @@ alter table public.point_ledger enable row level security;
 alter table public.redemption_requests enable row level security;
 alter table public.referrals enable row level security;
 
+-- Trusted role check for policies; SECURITY DEFINER avoids recursive profile RLS.
+create or replace function public.is_nova_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role = 'admin'
+  );
+$;
+
+revoke all on function public.is_nova_admin() from public;
+grant execute on function public.is_nova_admin() to authenticated;
+
 -- Restrict table privileges as well as row-level policies.
 revoke all on table public.profiles from anon, authenticated;
 revoke all on table public.tasks from anon, authenticated;
@@ -95,8 +112,14 @@ create policy "profiles insert own member" on public.profiles
 create policy "active tasks visible" on public.tasks
   for select to authenticated using (is_active = true);
 
+create policy "admins read all tasks" on public.tasks
+  for select to authenticated using (public.is_nova_admin());
+
 create policy "users read own completions" on public.task_completions
   for select to authenticated using (auth.uid() = user_id);
+
+create policy "admins read all completions" on public.task_completions
+  for select to authenticated using (public.is_nova_admin());
 
 -- Completion requests are inserted only through request_task_completion().
 -- This prevents clients from bypassing the active-task check in that RPC.
