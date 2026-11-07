@@ -31,7 +31,7 @@ const copy = {
     password:"كلمة المرور", create:"إنشاء حساب", signInHint:"استخدم بريدك للبدء. يتطلب الحساب الحقيقي إعداد Supabase.",
     authError:"تعذر إكمال العملية. تحقق من إعدادات Supabase والبريد.",
     loginSuccess:"تم إرسال رابط التحقق إلى بريدك إذا كان إعداد المصادقة مفعلاً.",
-    close:"إغلاق", pointsLabel:"النقاط", progress:"تقدمك", secure:"مكافآت بشفافية وأمان", noActivity:"لا توجد حركات بعد.",
+    close:"إغلاق", pointsLabel:"النقاط", progress:"تقدمك", secure:"مكافآت بشفافية وأمان", noActivity:"لا توجد حركات بعد.", noTasks:"لا توجد مهام مفعّلة حالياً. ستظهر هنا بعد اعتمادها.",
     adminNote:"لوحة الإدارة تتطلب حساباً بصلاحية admin في قاعدة البيانات.", approve:"موافقة", reject:"رفض", noPending:"لا توجد طلبات معلقة.", reviewTitle:"طلبات مراجعة المهام", evidenceTitle:"إثبات إنجاز المهمة", evidenceHint:"اشرح ما أنجزته بوضوح (10 إلى 2000 حرف).", sendReview:"إرسال للمراجعة", evidenceRequired:"أدخل وصفاً لا يقل عن 10 أحرف ولا يزيد عن 2000 حرف."
   },
   en: {
@@ -57,7 +57,7 @@ const copy = {
     password:"Password", create:"Create account", signInHint:"Use your email to get started. Real accounts require Supabase setup.",
     authError:"Could not complete the request. Check Supabase and email settings.",
     loginSuccess:"A verification link was sent if authentication is enabled.",
-    close:"Close", pointsLabel:"Points", progress:"Your progress", secure:"Transparent, safer rewards", noActivity:"No activity yet.",
+    close:"Close", pointsLabel:"Points", progress:"Your progress", secure:"Transparent, safer rewards", noActivity:"No activity yet.", noTasks:"No active tasks are available yet. Approved tasks will appear here.",
     adminNote:"Admin access requires an admin role in the database.", approve:"Approve", reject:"Reject", noPending:"No pending requests.", reviewTitle:"Task review queue", evidenceTitle:"Task completion evidence", evidenceHint:"Clearly describe what you completed (10 to 2000 characters).", sendReview:"Submit for review", evidenceRequired:"Enter between 10 and 2000 characters."
   }
 };
@@ -275,7 +275,7 @@ export default function App() {
           </section>
           <section className="feature-grid">
             <div className="panel tasks-panel"><div className="section-head"><div><h2>{t.discover}</h2><p>{t.available}</p></div><button className="text-btn" onClick={()=>setTab("tasks")}>{t.seeAll}<ArrowUpRight size={15}/></button></div>
-              <div className="task-list">{visibleTasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={Boolean(taskStatus(task.id))} status={taskStatus(task.id)} onStart={()=>completeTask(task.id)}/>)}</div>
+              <div className="task-list">{visibleTasks.length ? visibleTasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={Boolean(taskStatus(task.id))} status={taskStatus(task.id)} onStart={()=>completeTask(task.id)}/>) : <div className="empty-state"><p>{t.noTasks}</p></div>}</div>
             </div>
             <div className="side-stack"><div className="daily-card"><div className="daily-top"><div className="daily-icon"><Gift size={22}/></div><span>{t.demo}</span></div><h3>{t.daily}</h3><p>{t.dailyText}</p><div className="daily-reward">+25 <small>{t.pointsUnit}</small></div><button className="daily-btn" disabled={daily || dailyBusy} onClick={claimDaily}>{daily?<><Check size={16}/>{t.claimed}:<>{t.claim}<ArrowUpRight size={16}/></>}</button></div>
               <div className="ref-card"><div className="ref-icon"><Users size={20}/></div><h3>{t.referralTitle}</h3><p>{t.referralText}</p><button className="secondary-btn" onClick={copyReferral}>{copied?<Check size={16}/>:<ArrowUpRight size={16}/>} {copied?t.copied:t.copy}</button></div></div>
@@ -283,7 +283,7 @@ export default function App() {
           <section className="panel activity-panel"><div className="section-head"><div><h2>{t.recent}</h2><p>{t.demo}</p></div><button className="text-btn" onClick={()=>setTab("history")}>{t.all}<ArrowUpRight size={15}/></button></div><ActivityList done={done} daily={daily} t={t} user={Boolean(user)} ledgerEntries={ledgerEntries}/></section>
         </>}
 
-        {tab==="tasks" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.discover}</h2><p>{t.available}</p></div><span className="soft-pill">{visibleTasks.length} {isAr?"مهام":"tasks"}</span></div>{visibleTasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={Boolean(taskStatus(task.id))} status={taskStatus(task.id)} onStart={()=>completeTask(task.id)}/>)}</section>}
+        {tab==="tasks" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.discover}</h2><p>{t.available}</p></div><span className="soft-pill">{visibleTasks.length} {isAr?"مهام":"tasks"}</span></div>{visibleTasks.length ? visibleTasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={Boolean(taskStatus(task.id))} status={taskStatus(task.id)} onStart={()=>completeTask(task.id)}/>) : <div className="empty-state"><p>{t.noTasks}</p></div>}</section>}
         {tab==="wallet" && <section className="panel wallet-page"><div className="wallet-hero"><div><span>{t.points}</span><h2>{points.toLocaleString()} <small>{t.pointsUnit}</small></h2><p>{t.noCash}</p></div><div className="wallet-graphic"><Wallet size={52}/></div></div><div className="section-head"><div><h2>{t.walletTitle}</h2><p>{t.walletText}</p></div></div><ActivityList done={done} daily={daily} t={t} user={Boolean(user)} ledgerEntries={ledgerEntries}/><button className="primary-btn disabled-btn" disabled><ArrowDownToLine size={17}/>{t.redeem}</button></section>}
         {tab==="referrals" && <section className="panel page-panel referral-page"><div className="ref-illustration"><Users size={48}/></div><h2>{t.referralTitle}</h2><p>{t.referralText}</p><button className="primary-btn" onClick={copyReferral}>{copied?<Check/>:<ArrowUpRight/>}{copied?t.copied:t.copy}</button><small>{t.demoNotice}</small></section>}
         {tab==="history" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.recent}</h2><p>{t.demo}</p></div></div><ActivityList done={done} daily={daily} t={t} user={Boolean(user)} ledgerEntries={ledgerEntries}/></section>}
