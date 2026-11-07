@@ -15,7 +15,7 @@ const copy = {
     subtitle:"تابع نقاطك واكتشف فرصاً جديدة لكسب المكافآت.",
     points:"رصيد النقاط", earned:"إجمالي المكتسب", completed:"مهام مكتملة", invites:"دعوات ناجحة",
     discover:"مهام مقترحة", seeAll:"عرض الكل", available:"متاحة الآن",
-    start:"ابدأ المهمة", daily:"مكافأة يومية", dailyText:"عد يومياً واكتشف فرصاً جديدة.",
+    start:"ابدأ المهمة", review:"قيد المراجعة", daily:"مكافأة يومية", dailyText:"عد يومياً واكتشف فرصاً جديدة.",
     claim:"استلام", claimed:"تم الاستلام", recent:"آخر النشاطات", all:"عرض السجل", referralTitle:"ادعُ أصدقاءك واكسب نقاطاً",
     referralText:"شارك رابطك. ستظهر المكافأة بعد التحقق من الإحالة وفق شروط البرنامج.",
     copy:"نسخ الرابط", copied:"تم النسخ", pointsUnit:"نقطة", demo:"وضع تجريبي",
@@ -41,7 +41,7 @@ const copy = {
     subtitle:"Track your points and discover new ways to earn rewards.",
     points:"Points balance", earned:"Total earned", completed:"Tasks completed", invites:"Successful invites",
     discover:"Suggested tasks", seeAll:"See all", available:"Available now",
-    start:"Start task", daily:"Daily reward", dailyText:"Come back daily to discover new opportunities.",
+    start:"Start task", review:"Under review", daily:"Daily reward", dailyText:"Come back daily to discover new opportunities.",
     claim:"Claim", claimed:"Claimed", recent:"Recent activity", all:"View history", referralTitle:"Invite friends and earn points",
     referralText:"Share your link. Referral rewards are granted after eligibility checks.",
     copy:"Copy link", copied:"Copied", pointsUnit:"pts", demo:"Demo mode",
@@ -236,7 +236,7 @@ function Stat({icon:Icon,label,value,suffix,tone,trend}) {
 }
 function TaskRow({task,t,completed,onStart}) {
   const Icon=task.icon || Target;
-  return <div className="task-row"><div className={"task-icon "+(task.color || "violet")}><Icon size={20}/></div><div className="task-info"><b>{task.title || t[task.titleKey]}</b><small>{task.description || t[task.descKey]}</small></div><div className="task-reward">+{task.points}<small>{t.pointsUnit}</small></div><button className={"task-action "+(completed?"done":"")} onClick={onStart}>{completed?<Check size={17}/>:<ArrowUpRight size={17}/>}<span>{completed?(t.completed):t.start}</span></button></div>;
+  return <div className="task-row"><div className={"task-icon "+(task.color || "violet")}><Icon size={20}/></div><div className="task-info"><b>{task.title || t[task.titleKey]}</b><small>{task.description || t[task.descKey]}</small></div><div className="task-reward">+{task.points}<small>{t.pointsUnit}</small></div><button className={"task-action "+(completed?"done":"")} onClick={onStart}>{completed?<Check size={17}/>:<ArrowUpRight size={17}/>}<span>{completed?t.review:t.start}</span></button></div>;
 }
 function ActivityList({done,daily,t}) {
   const entries=[...(daily?[{name:t.daily,points:25}]:[]),...done.map(id=>({name:t[tasks.find(x=>x.id===id)?.titleKey],points:tasks.find(x=>x.id===id)?.points||0}))];
