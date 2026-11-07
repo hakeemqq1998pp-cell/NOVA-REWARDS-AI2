@@ -17,7 +17,7 @@ const copy = {
     discover:"مهام مقترحة", seeAll:"عرض الكل", available:"متاحة الآن",
     start:"ابدأ المهمة", review:"قيد المراجعة", approved:"مكتملة", rejected:"مرفوضة", daily:"مكافأة يومية", dailyText:"عد يومياً واكتشف فرصاً جديدة.",
     claim:"استلام", claimed:"تم الاستلام", recent:"آخر النشاطات", all:"عرض السجل", referralTitle:"ادعُ أصدقاءك واكسب نقاطاً",
-    referralText:"شارك رابطك. ستظهر المكافأة بعد التحقق من الإحالة وفق شروط البرنامج.",
+    referralText:"شارك رابطك. ستظهر المكافأة بعد التحقق من الإحالة وفق شروط البرنامج.", referralLogin:"سجّل الدخول أولاً للحصول على رابط إحالة حقيقي.", referralUnavailable:"تعذر تحميل رمز الإحالة من الحساب.",
     copy:"نسخ الرابط", copied:"تم النسخ", pointsUnit:"نقطة", demo:"وضع تجريبي",
     demoNotice:"هذه نسخة أولية. النقاط المعروضة تجريبية ولا تمثل أموالاً أو رصيداً قابلاً للسحب.",
     backend:"حالة الربط", connected:"Supabase متصل بالإعدادات", notConnected:"لم تتم إضافة مفاتيح Supabase بعد",
@@ -43,7 +43,7 @@ const copy = {
     discover:"Suggested tasks", seeAll:"See all", available:"Available now",
     start:"Start task", review:"Under review", approved:"Approved", rejected:"Rejected", daily:"Daily reward", dailyText:"Come back daily to discover new opportunities.",
     claim:"Claim", claimed:"Claimed", recent:"Recent activity", all:"View history", referralTitle:"Invite friends and earn points",
-    referralText:"Share your link. Referral rewards are granted after eligibility checks.",
+    referralText:"Share your link. Referral rewards are granted after eligibility checks.", referralLogin:"Sign in first to get your personal referral link.", referralUnavailable:"Could not load the referral code for this account.",
     copy:"Copy link", copied:"Copied", pointsUnit:"pts", demo:"Demo mode",
     demoNotice:"This is an early preview. Displayed points are demo values, not money or withdrawable balance.",
     backend:"Connection", connected:"Supabase configured", notConnected:"Supabase keys have not been added",
@@ -136,7 +136,10 @@ export default function App() {
     if (!supabase) { setMessage(t.notConnected); return; }
     setAuthBusy(true); setMessage("");
     try {
-      const { error } = await supabase.auth.signInWithOtp({ email, options:{ emailRedirectTo: window.location.origin } });
+      const referralCode = new URLSearchParams(window.location.search).get("ref")?.trim().slice(0,32);
+      const authOptions = { emailRedirectTo: window.location.origin };
+      if (referralCode) authOptions.data = { referral_code: referralCode };
+      const { error } = await supabase.auth.signInWithOtp({ email, options:authOptions });
       if (error) throw error;
       setMessage(t.loginSuccess);
     } catch (err) { setMessage(err.message || t.authError); }
@@ -169,8 +172,10 @@ export default function App() {
   }
 
   async function copyReferral() {
-    const code = "NOVA-" + (user?.id?.slice(0,8) || "PREVIEW");
-    const link = window.location.origin + "/?ref=" + code;
+    if (!supabase || !user) { setMessage(t.referralLogin); return; }
+    const {data,error} = await supabase.from("profiles").select("referral_code").eq("id", user.id).maybeSingle();
+    if (error || !data?.referral_code) { setMessage(t.referralUnavailable); return; }
+    const link = window.location.origin + "/?ref=" + encodeURIComponent(data.referral_code);
     try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(()=>setCopied(false),1800); }
     catch { setMessage(link); }
   }
