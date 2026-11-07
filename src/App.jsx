@@ -107,7 +107,7 @@ export default function App() {
   const points = ledgerPoints ?? demoPoints;
 
   useEffect(() => {
-    if (!supabase || !user) { setLedgerPoints(null); return; }
+    if (!supabase || !user) { setLedgerPoints(null); setActiveTasks(null); setRequestedTaskIds([]); setDaily(false); return; }
     let alive = true;
     (async () => {
       const [{data: ledger, error: ledgerError}, {data: claims, error: claimError}, {data: taskRows, error: taskError}, {data: completionRows, error: completionError}] = await Promise.all([
