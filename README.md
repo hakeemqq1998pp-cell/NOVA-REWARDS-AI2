@@ -11,7 +11,7 @@ Mobile-first rewards platform starter built with React, Vite and Supabase.
 - Email magic-link authentication when Supabase is configured
 - Supabase schema with Row Level Security
 - Database-backed daily reward (25 demo points, one claim per Baghdad calendar day)
-- Secure task-review request RPC; requests remain pending and do not award points
+- Secure task-review request RPC with 10–2000 character evidence; requests remain pending and do not award points
 
 ## Run locally
 ```bash
