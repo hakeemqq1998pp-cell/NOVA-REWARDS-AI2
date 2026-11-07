@@ -67,17 +67,36 @@ alter table public.point_ledger enable row level security;
 alter table public.redemption_requests enable row level security;
 alter table public.referrals enable row level security;
 
-create policy "profiles read own" on public.profiles for select to authenticated using (auth.uid() = id);
-create policy "profiles insert own" on public.profiles for insert to authenticated with check (auth.uid() = id);
-create policy "profiles update own" on public.profiles for update to authenticated using (auth.uid() = id) with check (auth.uid() = id);
+create policy "profiles read own" on public.profiles
+  for select to authenticated using (auth.uid() = id);
 
-create policy "active tasks visible" on public.tasks for select to authenticated using (is_active = true);
-create policy "users read own completions" on public.task_completions for select to authenticated using (auth.uid() = user_id);
-create policy "users create own completion requests" on public.task_completions for insert to authenticated with check (auth.uid() = user_id and status = 'pending' and points_awarded = 0);
-create policy "users read own ledger" on public.point_ledger for select to authenticated using (auth.uid() = user_id);
-create policy "users read own redemption requests" on public.redemption_requests for select to authenticated using (auth.uid() = user_id);
-create policy "users request redemption" on public.redemption_requests for insert to authenticated with check (auth.uid() = user_id and status = 'pending');
-create policy "users read referrals they are part of" on public.referrals for select to authenticated using (auth.uid() = inviter_id or auth.uid() = invitee_id);
+-- A member cannot create an admin profile or promote themselves.
+create policy "profiles insert own member" on public.profiles
+  for insert to authenticated with check (auth.uid() = id and role = 'member');
+
+-- No client-side profile role updates. Add a narrowly scoped display_name
+-- update policy later if needed; role changes belong to trusted admin tooling.
+
+create policy "active tasks visible" on public.tasks
+  for select to authenticated using (is_active = true);
+
+create policy "users read own completions" on public.task_completions
+  for select to authenticated using (auth.uid() = user_id);
+
+create policy "users create own completion requests" on public.task_completions
+  for insert to authenticated with check (auth.uid() = user_id and status = 'pending' and points_awarded = 0);
+
+create policy "users read own ledger" on public.point_ledger
+  for select to authenticated using (auth.uid() = user_id);
+
+create policy "users read own redemption requests" on public.redemption_requests
+  for select to authenticated using (auth.uid() = user_id);
+
+create policy "users request redemption" on public.redemption_requests
+  for insert to authenticated with check (auth.uid() = user_id and status = 'pending');
+
+create policy "users read referrals they are part of" on public.referrals
+  for select to authenticated using (auth.uid() = inviter_id or auth.uid() = invitee_id);
 
 -- Important: point awards, approvals, admin actions and payouts must be implemented
 -- in trusted server-side functions with strict validation and audit logs.
