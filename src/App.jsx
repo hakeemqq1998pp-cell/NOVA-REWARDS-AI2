@@ -127,7 +127,8 @@ export default function App() {
       setLedgerPoints(ledgerError ? 0 : (ledger || []).reduce((sum,row)=>sum + Number(row.amount || 0),0));
       if (!claimError) setDaily(Boolean(claims?.length));
       setActiveTasks(taskError ? [] : (taskRows || []).map(row => ({...row, icon: Target, color:"violet", title:row.title, description:row.description || ""})));
-      if (!completionError) setRequestedTaskStatuses(Object.fromEntries((completionRows || []).map(row => [row.task_id, row.status])));\n      setQualifiedReferrals(referralError ? 0 : (referralRows || []).filter(row => row.status === "qualified").length);
+      if (!completionError) setRequestedTaskStatuses(Object.fromEntries((completionRows || []).map(row => [row.task_id, row.status]))); 
+      setQualifiedReferrals(referralError ? 0 : (referralRows || []).filter(row => row.status === "qualified").length);
     })();
     return () => { alive = false; };
   }, [user]);
