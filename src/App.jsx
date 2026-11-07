@@ -126,7 +126,8 @@ export default function App() {
         supabase.from("daily_claims").select("id").eq("claim_date", baghdadDateKey()).limit(1),
         supabase.from("tasks").select("id,title,description,points,task_type").eq("is_active", true).order("created_at", {ascending:true}),
         supabase.from("task_completions").select("task_id,status"),
-        supabase.from("referrals").select("id,status").eq("inviter_id", user.id)
+        supabase.from("referrals").select("id,status").eq("inviter_id", user.id),
+        supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
       ]);
       if (!alive) return;
       setLedgerPoints(ledgerError ? 0 : (ledger || []).reduce((sum,row)=>sum + Number(row.amount || 0),0));
