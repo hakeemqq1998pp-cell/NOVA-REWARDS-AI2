@@ -78,6 +78,8 @@ export default function App() {
   const [authBusy,setAuthBusy] = useState(false);
   const [message,setMessage] = useState("");
   const [done,setDone] = useState([]);
+  const [ledgerPoints,setLedgerPoints] = useState(null);
+  const [dailyBusy,setDailyBusy] = useState(false);
   const [daily,setDaily] = useState(false);
   const [mobileOpen,setMobileOpen] = useState(false);
   const [copied,setCopied] = useState(false);
@@ -99,7 +101,23 @@ export default function App() {
     ["history",Activity,t.history]
   ];
 
-  const points = useMemo(() => done.reduce((sum,id) => sum + (tasks.find(x=>x.id===id)?.points || 0),0) + (daily ? 25 : 0),[done,daily]);
+  const demoPoints = useMemo(() => done.reduce((sum,id) => sum + (tasks.find(x=>x.id===id)?.points || 0),0) + (daily ? 25 : 0),[done,daily]);
+  const points = ledgerPoints ?? demoPoints;
+
+  useEffect(() => {
+    if (!supabase || !user) { setLedgerPoints(null); return; }
+    let alive = true;
+    (async () => {
+      const [{data: ledger, error: ledgerError}, {data: claims, error: claimError}] = await Promise.all([
+        supabase.from("point_ledger").select("amount"),
+        supabase.from("daily_claims").select("id").eq("claim_date", new Intl.DateTimeFormat("en-CA", {timeZone:"Asia/Baghdad",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())).limit(1)
+      ]);
+      if (!alive) return;
+      if (!ledgerError) setLedgerPoints((ledger || []).reduce((sum,row)=>sum + Number(row.amount || 0),0));
+      if (!claimError) setDaily(Boolean(claims?.length));
+    })();
+    return () => { alive = false; };
+  }, [user]);
 
   async function authenticate(e) {
     e.preventDefault();
@@ -116,6 +134,23 @@ export default function App() {
   async function signOut() {
     if (supabase) await supabase.auth.signOut();
     setUser(null);
+  }
+
+  async function claimDaily() {
+    if (dailyBusy || daily) return;
+    if (supabase && user) {
+      setDailyBusy(true);
+      const {data,error} = await supabase.rpc("claim_daily_reward");
+      setDailyBusy(false);
+      if (error) { setMessage(error.message || t.authError); return; }
+      const awarded = Number(data?.[0]?.points_awarded || 25);
+      setLedgerPoints(old => (old ?? 0) + awarded);
+      setDaily(true);
+      setMessage(isAr ? "تمت إضافة المكافأة إلى سجل النقاط." : "Daily reward added to your points ledger.");
+      return;
+    }
+    setDaily(true);
+    setMessage(t.demoNotice);
   }
 
   async function copyReferral() {
@@ -165,7 +200,7 @@ export default function App() {
             <div className="panel tasks-panel"><div className="section-head"><div><h2>{t.discover}</h2><p>{t.available}</p></div><button className="text-btn" onClick={()=>setTab("tasks")}>{t.seeAll}<ArrowUpRight size={15}/></button></div>
               <div className="task-list">{tasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={done.includes(task.id)} onStart={()=>completeTask(task.id)}/>)}</div>
             </div>
-            <div className="side-stack"><div className="daily-card"><div className="daily-top"><div className="daily-icon"><Gift size={22}/></div><span>{t.demo}</span></div><h3>{t.daily}</h3><p>{t.dailyText}</p><div className="daily-reward">+25 <small>{t.pointsUnit}</small></div><button className="daily-btn" disabled={daily} onClick={()=>setDaily(true)}>{daily?<><Check size={16}/>{t.claimed}:<>{t.claim}<ArrowUpRight size={16}/></>}</button></div>
+            <div className="side-stack"><div className="daily-card"><div className="daily-top"><div className="daily-icon"><Gift size={22}/></div><span>{t.demo}</span></div><h3>{t.daily}</h3><p>{t.dailyText}</p><div className="daily-reward">+25 <small>{t.pointsUnit}</small></div><button className="daily-btn" disabled={daily || dailyBusy} onClick={claimDaily}>{daily?<><Check size={16}/>{t.claimed}:<>{t.claim}<ArrowUpRight size={16}/></>}</button></div>
               <div className="ref-card"><div className="ref-icon"><Users size={20}/></div><h3>{t.referralTitle}</h3><p>{t.referralText}</p><button className="secondary-btn" onClick={copyReferral}>{copied?<Check size={16}/>:<ArrowUpRight size={16}/>} {copied?t.copied:t.copy}</button></div></div>
           </section>
           <section className="panel activity-panel"><div className="section-head"><div><h2>{t.recent}</h2><p>{t.demo}</p></div><button className="text-btn" onClick={()=>setTab("history")}>{t.all}<ArrowUpRight size={15}/></button></div><ActivityList done={done} daily={daily} t={t}/></section>
