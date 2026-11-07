@@ -16,7 +16,7 @@ const copy = {
     points:"رصيد النقاط", earned:"إجمالي المكتسب", completed:"مهام مكتملة", invites:"دعوات ناجحة",
     discover:"مهام مقترحة", seeAll:"عرض الكل", available:"متاحة الآن",
     start:"ابدأ المهمة", daily:"مكافأة يومية", dailyText:"عد يومياً واكتشف فرصاً جديدة.",
-    claim:"استلام", recent:"آخر النشاطات", all:"عرض السجل", referralTitle:"ادعُ أصدقاءك واكسب نقاطاً",
+    claim:"استلام", claimed:"تم الاستلام", recent:"آخر النشاطات", all:"عرض السجل", referralTitle:"ادعُ أصدقاءك واكسب نقاطاً",
     referralText:"شارك رابطك. ستظهر المكافأة بعد التحقق من الإحالة وفق شروط البرنامج.",
     copy:"نسخ الرابط", copied:"تم النسخ", pointsUnit:"نقطة", demo:"وضع تجريبي",
     demoNotice:"هذه نسخة أولية. النقاط المعروضة تجريبية ولا تمثل أموالاً أو رصيداً قابلاً للسحب.",
@@ -42,7 +42,7 @@ const copy = {
     points:"Points balance", earned:"Total earned", completed:"Tasks completed", invites:"Successful invites",
     discover:"Suggested tasks", seeAll:"See all", available:"Available now",
     start:"Start task", daily:"Daily reward", dailyText:"Come back daily to discover new opportunities.",
-    claim:"Claim", recent:"Recent activity", all:"View history", referralTitle:"Invite friends and earn points",
+    claim:"Claim", claimed:"Claimed", recent:"Recent activity", all:"View history", referralTitle:"Invite friends and earn points",
     referralText:"Share your link. Referral rewards are granted after eligibility checks.",
     copy:"Copy link", copied:"Copied", pointsUnit:"pts", demo:"Demo mode",
     demoNotice:"This is an early preview. Displayed points are demo values, not money or withdrawable balance.",
@@ -165,7 +165,7 @@ export default function App() {
             <div className="panel tasks-panel"><div className="section-head"><div><h2>{t.discover}</h2><p>{t.available}</p></div><button className="text-btn" onClick={()=>setTab("tasks")}>{t.seeAll}<ArrowUpRight size={15}/></button></div>
               <div className="task-list">{tasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={done.includes(task.id)} onStart={()=>completeTask(task.id)}/>)}</div>
             </div>
-            <div className="side-stack"><div className="daily-card"><div className="daily-top"><div className="daily-icon"><Gift size={22}/></div><span>{t.demo}</span></div><h3>{t.daily}</h3><p>{t.dailyText}</p><div className="daily-reward">+25 <small>{t.pointsUnit}</small></div><button className="daily-btn" disabled={daily} onClick={()=>setDaily(true)}>{daily?<><Check size={16}/>{t.copied}</>:<>{t.claim}<ArrowUpRight size={16}/></>}</button></div>
+            <div className="side-stack"><div className="daily-card"><div className="daily-top"><div className="daily-icon"><Gift size={22}/></div><span>{t.demo}</span></div><h3>{t.daily}</h3><p>{t.dailyText}</p><div className="daily-reward">+25 <small>{t.pointsUnit}</small></div><button className="daily-btn" disabled={daily} onClick={()=>setDaily(true)}>{daily?<><Check size={16}/>{t.claimed}:<>{t.claim}<ArrowUpRight size={16}/></>}</button></div>
               <div className="ref-card"><div className="ref-icon"><Users size={20}/></div><h3>{t.referralTitle}</h3><p>{t.referralText}</p><button className="secondary-btn" onClick={copyReferral}>{copied?<Check size={16}/>:<ArrowUpRight size={16}/>} {copied?t.copied:t.copy}</button></div></div>
           </section>
           <section className="panel activity-panel"><div className="section-head"><div><h2>{t.recent}</h2><p>{t.demo}</p></div><button className="text-btn" onClick={()=>setTab("history")}>{t.all}<ArrowUpRight size={15}/></button></div><ActivityList done={done} daily={daily} t={t}/></section>
