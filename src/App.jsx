@@ -85,6 +85,7 @@ export default function App() {
   const [message,setMessage] = useState("");
   const [done,setDone] = useState([]);
   const [ledgerPoints,setLedgerPoints] = useState(null);
+  const [ledgerEntries,setLedgerEntries] = useState([]);
   const [activeTasks,setActiveTasks] = useState(null);
   const [requestedTaskStatuses,setRequestedTaskStatuses] = useState({});
   const [qualifiedReferrals,setQualifiedReferrals] = useState(0);
@@ -114,11 +115,11 @@ export default function App() {
   const points = ledgerPoints ?? demoPoints;
 
   useEffect(() => {
-    if (!supabase || !user) { setLedgerPoints(null); setActiveTasks(null); setRequestedTaskStatuses({}); setQualifiedReferrals(0); setDaily(false); return; }
+    if (!supabase || !user) { setLedgerPoints(null); setLedgerEntries([]); setActiveTasks(null); setRequestedTaskStatuses({}); setQualifiedReferrals(0); setDaily(false); return; }
     let alive = true;
     (async () => {
       const [{data: ledger, error: ledgerError}, {data: claims, error: claimError}, {data: taskRows, error: taskError}, {data: completionRows, error: completionError}, {data: referralRows, error: referralError}] = await Promise.all([
-        supabase.from("point_ledger").select("amount"),
+        supabase.from("point_ledger").select("amount,reason,created_at").order("created_at", {ascending:false}).limit(20),
         supabase.from("daily_claims").select("id").eq("claim_date", baghdadDateKey()).limit(1),
         supabase.from("tasks").select("id,title,description,points,task_type").eq("is_active", true).order("created_at", {ascending:true}),
         supabase.from("task_completions").select("task_id,status"),
@@ -126,6 +127,7 @@ export default function App() {
       ]);
       if (!alive) return;
       setLedgerPoints(ledgerError ? 0 : (ledger || []).reduce((sum,row)=>sum + Number(row.amount || 0),0));
+      setLedgerEntries(ledgerError ? [] : (ledger || []));
       if (!claimError) setDaily(Boolean(claims?.length));
       setActiveTasks(taskError ? [] : (taskRows || []).map(row => ({...row, icon: Target, color:"violet", title:row.title, description:row.description || ""})));
       if (!completionError) setRequestedTaskStatuses(Object.fromEntries((completionRows || []).map(row => [row.task_id, row.status]))); 
@@ -234,7 +236,7 @@ export default function App() {
             <div className="side-stack"><div className="daily-card"><div className="daily-top"><div className="daily-icon"><Gift size={22}/></div><span>{t.demo}</span></div><h3>{t.daily}</h3><p>{t.dailyText}</p><div className="daily-reward">+25 <small>{t.pointsUnit}</small></div><button className="daily-btn" disabled={daily || dailyBusy} onClick={claimDaily}>{daily?<><Check size={16}/>{t.claimed}:<>{t.claim}<ArrowUpRight size={16}/></>}</button></div>
               <div className="ref-card"><div className="ref-icon"><Users size={20}/></div><h3>{t.referralTitle}</h3><p>{t.referralText}</p><button className="secondary-btn" onClick={copyReferral}>{copied?<Check size={16}/>:<ArrowUpRight size={16}/>} {copied?t.copied:t.copy}</button></div></div>
           </section>
-          <section className="panel activity-panel"><div className="section-head"><div><h2>{t.recent}</h2><p>{t.demo}</p></div><button className="text-btn" onClick={()=>setTab("history")}>{t.all}<ArrowUpRight size={15}/></button></div><ActivityList done={done} daily={daily} t={t}/></section>
+          <section className="panel activity-panel"><div className="section-head"><div><h2>{t.recent}</h2><p>{t.demo}</p></div><button className="text-btn" onClick={()=>setTab("history")}>{t.all}<ArrowUpRight size={15}/></button></div><ActivityList done={done} daily={daily} t={t} user={Boolean(user)} ledgerEntries={ledgerEntries}/></section>
         </>}
 
         {tab==="tasks" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.discover}</h2><p>{t.available}</p></div><span className="soft-pill">{visibleTasks.length} {isAr?"مهام":"tasks"}</span></div>{visibleTasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={Boolean(taskStatus(task.id))} status={taskStatus(task.id)} onStart={()=>completeTask(task.id)}/>)}</section>}
@@ -261,8 +263,10 @@ function TaskRow({task,t,completed,status,onStart}) {
   const Icon=task.icon || Target;
   return <div className="task-row"><div className={"task-icon "+(task.color || "violet")}><Icon size={20}/></div><div className="task-info"><b>{task.title || t[task.titleKey]}</b><small>{task.description || t[task.descKey]}</small></div><div className="task-reward">+{task.points}<small>{t.pointsUnit}</small></div><button className={"task-action "+(completed?"done":"")} onClick={onStart} disabled={completed}>{completed?<Check size={17}/>:<ArrowUpRight size={17}/>}<span>{status==="pending"?t.review:status==="approved"?t.approved:status==="rejected"?t.rejected:t.start}</span></button></div>;
 }
-function ActivityList({done,daily,t}) {
-  const entries=[...(daily?[{name:t.daily,points:25}]:[]),...done.map(id=>({name:t[tasks.find(x=>x.id===id)?.titleKey],points:tasks.find(x=>x.id===id)?.points||0}))];
+function ActivityList({done,daily,t,user,ledgerEntries}) {
+  const entries = user
+    ? (ledgerEntries || []).map(row => ({name:row.reason === "daily_reward" ? t.daily : row.reason, points:Number(row.amount || 0)}))
+    : [...(daily?[{name:t.daily,points:25}]:[]),...done.map(id=>({name:t[tasks.find(x=>x.id===id)?.titleKey],points:tasks.find(x=>x.id===id)?.points||0}))];
   if(!entries.length) return <div className="empty-state"><Activity size={24}/><p>{t.demo}</p></div>;
-  return <div className="activity-list">{entries.map((x,i)=><div className="activity-row" key={i}><div className="activity-check"><Check size={16}/></div><b>{x.name}</b><span>+{x.points} {t.pointsUnit}</span></div>)}</div>;
+  return <div className="activity-list">{entries.map((x,i)=><div className="activity-row" key={i}><div className="activity-check"><Check size={16}/></div><b>{x.name}</b><span>{x.points>0?"+":""}{x.points} {t.pointsUnit}</span></div>)}</div>;
 }
