@@ -67,6 +67,21 @@ alter table public.point_ledger enable row level security;
 alter table public.redemption_requests enable row level security;
 alter table public.referrals enable row level security;
 
+-- Restrict table privileges as well as row-level policies.
+revoke all on table public.profiles from anon, authenticated;
+revoke all on table public.tasks from anon, authenticated;
+revoke all on table public.task_completions from anon, authenticated;
+revoke all on table public.point_ledger from anon, authenticated;
+revoke all on table public.redemption_requests from anon, authenticated;
+revoke all on table public.referrals from anon, authenticated;
+
+grant select, insert on table public.profiles to authenticated;
+grant select on table public.tasks to authenticated;
+grant select on table public.task_completions to authenticated;
+grant select on table public.point_ledger to authenticated;
+grant select, insert on table public.redemption_requests to authenticated;
+grant select on table public.referrals to authenticated;
+
 create policy "profiles read own" on public.profiles
   for select to authenticated using (auth.uid() = id);
 
