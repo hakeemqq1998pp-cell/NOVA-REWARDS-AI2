@@ -79,6 +79,8 @@ export default function App() {
   const [message,setMessage] = useState("");
   const [done,setDone] = useState([]);
   const [ledgerPoints,setLedgerPoints] = useState(null);
+  const [activeTasks,setActiveTasks] = useState(null);
+  const [requestedTaskIds,setRequestedTaskIds] = useState([]);
   const [dailyBusy,setDailyBusy] = useState(false);
   const [daily,setDaily] = useState(false);
   const [mobileOpen,setMobileOpen] = useState(false);
@@ -108,13 +110,17 @@ export default function App() {
     if (!supabase || !user) { setLedgerPoints(null); return; }
     let alive = true;
     (async () => {
-      const [{data: ledger, error: ledgerError}, {data: claims, error: claimError}] = await Promise.all([
+      const [{data: ledger, error: ledgerError}, {data: claims, error: claimError}, {data: taskRows, error: taskError}, {data: completionRows, error: completionError}] = await Promise.all([
         supabase.from("point_ledger").select("amount"),
-        supabase.from("daily_claims").select("id").eq("claim_date", new Intl.DateTimeFormat("en-CA", {timeZone:"Asia/Baghdad",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())).limit(1)
+        supabase.from("daily_claims").select("id").eq("claim_date", new Intl.DateTimeFormat("en-CA", {timeZone:"Asia-Baghdad",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())).limit(1),
+        supabase.from("tasks").select("id,title,description,points,task_type").eq("is_active", true).order("created_at", {ascending:true}),
+        supabase.from("task_completions").select("task_id,status")
       ]);
       if (!alive) return;
       if (!ledgerError) setLedgerPoints((ledger || []).reduce((sum,row)=>sum + Number(row.amount || 0),0));
       if (!claimError) setDaily(Boolean(claims?.length));
+      if (!taskError) setActiveTasks((taskRows || []).map(row => ({...row, icon: Target, color:"violet", title:row.title, description:row.description || ""})));
+      if (!completionError) setRequestedTaskIds((completionRows || []).map(row => row.task_id));
     })();
     return () => { alive = false; };
   }, [user]);
@@ -136,7 +142,7 @@ export default function App() {
     setUser(null);
   }
 
-  async function claimDaily() {
+  const visibleTasks = user && activeTasks !== null ? activeTasks : tasks;\n\n  async function claimDaily() {
     if (dailyBusy || daily) return;
     if (supabase && user) {
       setDailyBusy(true);
@@ -206,7 +212,7 @@ export default function App() {
           <section className="panel activity-panel"><div className="section-head"><div><h2>{t.recent}</h2><p>{t.demo}</p></div><button className="text-btn" onClick={()=>setTab("history")}>{t.all}<ArrowUpRight size={15}/></button></div><ActivityList done={done} daily={daily} t={t}/></section>
         </>}
 
-        {tab==="tasks" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.discover}</h2><p>{t.available}</p></div><span className="soft-pill">{tasks.length} {isAr?"مهام":"tasks"}</span></div>{tasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={done.includes(task.id)} onStart={()=>completeTask(task.id)}/>)}</section>}
+        {tab==="tasks" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.discover}</h2><p>{t.available}</p></div><span className="soft-pill">{visibleTasks.length} {isAr?"مهام":"tasks"}</span></div>{tasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={done.includes(task.id)} onStart={()=>completeTask(task.id)}/>)}</section>}
         {tab==="wallet" && <section className="panel wallet-page"><div className="wallet-hero"><div><span>{t.points}</span><h2>{points.toLocaleString()} <small>{t.pointsUnit}</small></h2><p>{t.noCash}</p></div><div className="wallet-graphic"><Wallet size={52}/></div></div><div className="section-head"><div><h2>{t.walletTitle}</h2><p>{t.walletText}</p></div></div><ActivityList done={done} daily={daily} t={t}/><button className="primary-btn disabled-btn" disabled><ArrowDownToLine size={17}/>{t.redeem}</button></section>}
         {tab==="referrals" && <section className="panel page-panel referral-page"><div className="ref-illustration"><Users size={48}/></div><h2>{t.referralTitle}</h2><p>{t.referralText}</p><button className="primary-btn" onClick={copyReferral}>{copied?<Check/>:<ArrowUpRight/>}{copied?t.copied:t.copy}</button><small>{t.demoNotice}</small></section>}
         {tab==="history" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.recent}</h2><p>{t.demo}</p></div></div><ActivityList done={done} daily={daily} t={t}/></section>}
