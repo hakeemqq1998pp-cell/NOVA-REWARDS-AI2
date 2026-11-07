@@ -15,7 +15,7 @@ const copy = {
     subtitle:"تابع نقاطك واكتشف فرصاً جديدة لكسب المكافآت.",
     points:"رصيد النقاط", earned:"إجمالي المكتسب", completed:"مهام مكتملة", invites:"دعوات ناجحة",
     discover:"مهام مقترحة", seeAll:"عرض الكل", available:"متاحة الآن",
-    start:"ابدأ المهمة", review:"قيد المراجعة", daily:"مكافأة يومية", dailyText:"عد يومياً واكتشف فرصاً جديدة.",
+    start:"ابدأ المهمة", review:"قيد المراجعة", approved:"مكتملة", rejected:"مرفوضة", daily:"مكافأة يومية", dailyText:"عد يومياً واكتشف فرصاً جديدة.",
     claim:"استلام", claimed:"تم الاستلام", recent:"آخر النشاطات", all:"عرض السجل", referralTitle:"ادعُ أصدقاءك واكسب نقاطاً",
     referralText:"شارك رابطك. ستظهر المكافأة بعد التحقق من الإحالة وفق شروط البرنامج.",
     copy:"نسخ الرابط", copied:"تم النسخ", pointsUnit:"نقطة", demo:"وضع تجريبي",
@@ -41,7 +41,7 @@ const copy = {
     subtitle:"Track your points and discover new ways to earn rewards.",
     points:"Points balance", earned:"Total earned", completed:"Tasks completed", invites:"Successful invites",
     discover:"Suggested tasks", seeAll:"See all", available:"Available now",
-    start:"Start task", review:"Under review", daily:"Daily reward", dailyText:"Come back daily to discover new opportunities.",
+    start:"Start task", review:"Under review", approved:"Approved", rejected:"Rejected", daily:"Daily reward", dailyText:"Come back daily to discover new opportunities.",
     claim:"Claim", claimed:"Claimed", recent:"Recent activity", all:"View history", referralTitle:"Invite friends and earn points",
     referralText:"Share your link. Referral rewards are granted after eligibility checks.",
     copy:"Copy link", copied:"Copied", pointsUnit:"pts", demo:"Demo mode",
@@ -80,7 +80,7 @@ export default function App() {
   const [done,setDone] = useState([]);
   const [ledgerPoints,setLedgerPoints] = useState(null);
   const [activeTasks,setActiveTasks] = useState(null);
-  const [requestedTaskIds,setRequestedTaskIds] = useState([]);
+  const [requestedTaskStatuses,setRequestedTaskStatuses] = useState({});
   const [dailyBusy,setDailyBusy] = useState(false);
   const [daily,setDaily] = useState(false);
   const [mobileOpen,setMobileOpen] = useState(false);
@@ -107,7 +107,7 @@ export default function App() {
   const points = ledgerPoints ?? demoPoints;
 
   useEffect(() => {
-    if (!supabase || !user) { setLedgerPoints(null); setActiveTasks(null); setRequestedTaskIds([]); setDaily(false); return; }
+    if (!supabase || !user) { setLedgerPoints(null); setActiveTasks(null); setRequestedTaskStatuses({}); setDaily(false); return; }
     let alive = true;
     (async () => {
       const [{data: ledger, error: ledgerError}, {data: claims, error: claimError}, {data: taskRows, error: taskError}, {data: completionRows, error: completionError}] = await Promise.all([
@@ -120,7 +120,7 @@ export default function App() {
       if (!ledgerError) setLedgerPoints((ledger || []).reduce((sum,row)=>sum + Number(row.amount || 0),0));
       if (!claimError) setDaily(Boolean(claims?.length));
       setActiveTasks(taskError ? [] : (taskRows || []).map(row => ({...row, icon: Target, color:"violet", title:row.title, description:row.description || ""})));
-      if (!completionError) setRequestedTaskIds((completionRows || []).map(row => row.task_id));
+      if (!completionError) setRequestedTaskStatuses(Object.fromEntries((completionRows || []).map(row => [row.task_id, row.status])));
     })();
     return () => { alive = false; };
   }, [user]);
@@ -143,6 +143,7 @@ export default function App() {
   }
 
   const visibleTasks = user ? (activeTasks ?? []) : tasks;
+  const taskStatus = id => user ? (requestedTaskStatuses[id] || "") : (done.includes(id) ? "approved" : "");
 
   async function claimDaily() {
     if (dailyBusy || daily) return;
@@ -206,7 +207,7 @@ export default function App() {
           </section>
           <section className="feature-grid">
             <div className="panel tasks-panel"><div className="section-head"><div><h2>{t.discover}</h2><p>{t.available}</p></div><button className="text-btn" onClick={()=>setTab("tasks")}>{t.seeAll}<ArrowUpRight size={15}/></button></div>
-              <div className="task-list">{visibleTasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={user ? requestedTaskIds.includes(task.id) : done.includes(task.id)} onStart={()=>completeTask(task.id)}/>)}</div>
+              <div className="task-list">{visibleTasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={Boolean(taskStatus(task.id))} status={taskStatus(task.id)} onStart={()=>completeTask(task.id)}/>)}</div>
             </div>
             <div className="side-stack"><div className="daily-card"><div className="daily-top"><div className="daily-icon"><Gift size={22}/></div><span>{t.demo}</span></div><h3>{t.daily}</h3><p>{t.dailyText}</p><div className="daily-reward">+25 <small>{t.pointsUnit}</small></div><button className="daily-btn" disabled={daily || dailyBusy} onClick={claimDaily}>{daily?<><Check size={16}/>{t.claimed}:<>{t.claim}<ArrowUpRight size={16}/></>}</button></div>
               <div className="ref-card"><div className="ref-icon"><Users size={20}/></div><h3>{t.referralTitle}</h3><p>{t.referralText}</p><button className="secondary-btn" onClick={copyReferral}>{copied?<Check size={16}/>:<ArrowUpRight size={16}/>} {copied?t.copied:t.copy}</button></div></div>
@@ -234,9 +235,9 @@ export default function App() {
 function Stat({icon:Icon,label,value,suffix,tone,trend}) {
   return <div className="stat-card"><div className={"stat-icon "+tone}><Icon size={20}/></div><span className="stat-label">{label}</span><div className="stat-value">{value}<small>{suffix}</small></div><div className="stat-foot"><span className="stat-dot"/> {trend}</div></div>;
 }
-function TaskRow({task,t,completed,onStart}) {
+function TaskRow({task,t,completed,status,onStart}) {
   const Icon=task.icon || Target;
-  return <div className="task-row"><div className={"task-icon "+(task.color || "violet")}><Icon size={20}/></div><div className="task-info"><b>{task.title || t[task.titleKey]}</b><small>{task.description || t[task.descKey]}</small></div><div className="task-reward">+{task.points}<small>{t.pointsUnit}</small></div><button className={"task-action "+(completed?"done":"")} onClick={onStart}>{completed?<Check size={17}/>:<ArrowUpRight size={17}/>}<span>{completed?t.review:t.start}</span></button></div>;
+  return <div className="task-row"><div className={"task-icon "+(task.color || "violet")}><Icon size={20}/></div><div className="task-info"><b>{task.title || t[task.titleKey]}</b><small>{task.description || t[task.descKey]}</small></div><div className="task-reward">+{task.points}<small>{t.pointsUnit}</small></div><button className={"task-action "+(completed?"done":"")} onClick={onStart} disabled={completed}>{completed?<Check size={17}/>:<ArrowUpRight size={17}/>}<span>{status==="pending"?t.review:status==="approved"?t.approved:status==="rejected"?t.rejected:t.start}</span></button></div>;
 }
 function ActivityList({done,daily,t}) {
   const entries=[...(daily?[{name:t.daily,points:25}]:[]),...done.map(id=>({name:t[tasks.find(x=>x.id===id)?.titleKey],points:tasks.find(x=>x.id===id)?.points||0}))];
