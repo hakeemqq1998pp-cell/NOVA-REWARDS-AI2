@@ -28,6 +28,7 @@ create table if not exists public.task_completions (
   task_id uuid not null references public.tasks(id) on delete restrict,
   status text not null default 'pending' check (status in ('pending','approved','rejected')),
   points_awarded integer not null default 0 check (points_awarded >= 0),
+  evidence_text text check (evidence_text is null or char_length(evidence_text) <= 2000),
   reviewed_by uuid references public.profiles(id) on delete set null,
   reviewed_at timestamptz,
   created_at timestamptz not null default now(),
@@ -35,6 +36,8 @@ create table if not exists public.task_completions (
 );
 
 -- Add review audit fields to existing installations as well.
+alter table public.task_completions
+  add column if not exists evidence_text text;
 alter table public.task_completions
   add column if not exists reviewed_by uuid references public.profiles(id) on delete set null;
 alter table public.task_completions
