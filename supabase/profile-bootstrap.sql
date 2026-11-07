@@ -8,7 +8,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   v_referral_code text;
   v_inviter_id uuid;
