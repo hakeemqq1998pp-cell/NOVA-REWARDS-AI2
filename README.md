@@ -71,7 +71,7 @@ Until those prerequisites exist, redemption remains disabled. Do not collect car
 - Clients cannot write point-ledger entries or approve tasks.
 - Daily claims are limited by a unique user/date constraint and a transactional RPC.
 - Task completion requests are validated against active tasks in a security-definer RPC.
-- Admin task approvals are role-checked and award points atomically with the status update.
+- Admin task approvals are role-checked, award points atomically with the status update, and record reviewer identity/time.
 - Referral attribution is recorded at signup only; qualification and rewards still require trusted server-side workflows and audit logs.
 - Real admin approval, redemptions and payouts still require trusted server-side workflows and audit logs.
 
