@@ -78,6 +78,15 @@ alter table public.point_ledger enable row level security;
 alter table public.redemption_requests enable row level security;
 alter table public.referrals enable row level security;
 
+-- Query indexes for member dashboards and admin review.
+create index if not exists point_ledger_user_created_idx
+  on public.point_ledger(user_id, created_at desc);
+create index if not exists task_completions_pending_created_idx
+  on public.task_completions(created_at asc) where status = 'pending';
+create index if not exists referrals_inviter_status_idx
+  on public.referrals(inviter_id, status);
+
+
 -- Trusted role check for policies; SECURITY DEFINER avoids recursive profile RLS.
 create or replace function public.is_nova_admin()
 returns boolean
