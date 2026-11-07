@@ -143,14 +143,16 @@ begin
   if p_decision = 'approved' then
     v_awarded := v_task_points;
     update public.task_completions
-      set status = 'approved', points_awarded = v_awarded
+      set status = 'approved', points_awarded = v_awarded,
+          reviewed_by = v_admin, reviewed_at = now()
       where id = p_completion_id;
 
     insert into public.point_ledger(user_id, amount, reason, reference_id)
       values (v_user_id, v_awarded, 'task_completion', p_completion_id);
   else
     update public.task_completions
-      set status = 'rejected', points_awarded = 0
+      set status = 'rejected', points_awarded = 0,
+          reviewed_by = v_admin, reviewed_at = now()
       where id = p_completion_id;
   end if;
 
