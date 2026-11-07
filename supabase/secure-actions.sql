@@ -91,5 +91,75 @@ $$;
 revoke all on function public.claim_daily_reward() from public;
 grant execute on function public.claim_daily_reward() to authenticated;
 
+-- Only a database-authorized admin may approve/reject a pending task.
+-- Approval and ledger credit happen in one transaction.
+create or replace function public.admin_review_task_completion(
+  p_completion_id uuid,
+  p_decision text
+)
+returns table(completion_id uuid, new_status text, points_awarded integer)
+language plpgsql
+security definer
+set search_path = public
+as $
+declare
+  v_admin uuid := auth.uid();
+  v_user_id uuid;
+  v_task_id uuid;
+  v_current_status text;
+  v_task_points integer;
+  v_awarded integer := 0;
+begin
+  if v_admin is null then
+    raise exception 'Authentication required';
+  end if;
+
+  if not exists (
+    select 1 from public.profiles
+    where id = v_admin and role = 'admin'
+  ) then
+    raise exception 'Admin permission required';
+  end if;
+
+  if p_decision not in ('approved', 'rejected') then
+    raise exception 'Decision must be approved or rejected';
+  end if;
+
+  select tc.user_id, tc.task_id, tc.status, t.points
+    into v_user_id, v_task_id, v_current_status, v_task_points
+  from public.task_completions tc
+  join public.tasks t on t.id = tc.task_id
+  where tc.id = p_completion_id
+  for update of tc;
+
+  if not found then
+    raise exception 'Task completion request not found';
+  end if;
+
+  if v_current_status <> 'pending' then
+    raise exception 'Task completion has already been reviewed';
+  end if;
+
+  if p_decision = 'approved' then
+    v_awarded := v_task_points;
+    update public.task_completions
+      set status = 'approved', points_awarded = v_awarded
+      where id = p_completion_id;
+
+    insert into public.point_ledger(user_id, amount, reason, reference_id)
+      values (v_user_id, v_awarded, 'task_completion', p_completion_id);
+  else
+    update public.task_completions
+      set status = 'rejected', points_awarded = 0
+      where id = p_completion_id;
+  end if;
+
+  return query select p_completion_id, p_decision, v_awarded;
+end;
+$;
+
+revoke all on function public.admin_review_task_completion(uuid, text) from public;
+grant execute on function public.admin_review_task_completion(uuid, text) to authenticated;
+
 -- Members may not directly insert ledger entries or change task approval status.
 -- Trusted service-side admin tooling must handle approvals and awards.
