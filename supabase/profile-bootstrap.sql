@@ -32,6 +32,21 @@ create trigger on_auth_user_created_nova_profile
   after insert on auth.users
   for each row execute procedure public.handle_new_nova_profile();
 
+-- Backfill profiles for accounts that existed before this trigger was installed.
+-- Existing role values are preserved; only missing profile rows are created.
+insert into public.profiles (id, display_name, referral_code, role)
+select
+  u.id,
+  coalesce(
+    nullif(u.raw_user_meta_data ->> 'display_name', ''),
+    nullif(split_part(coalesce(u.email, ''), '@', 1), ''),
+    'NOVA Member'
+  ),
+  upper(substr(encode(gen_random_bytes(8), 'hex'), 1, 12)),
+  'member'
+from auth.users u
+on conflict (id) do nothing;
+
 -- Starter tasks are intentionally inactive until each task has a verified
 -- completion method and an anti-abuse review. No points are granted here.
 insert into public.tasks (title, description, points, task_type, is_active)
