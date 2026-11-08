@@ -50,7 +50,7 @@ alter table public.cash_payment_events enable row level security;
 alter table public.cash_withdrawals enable row level security;
 
 revoke all on public.cash_ledger, public.cash_payment_events, public.cash_withdrawals from anon, authenticated;
-grant select on public.cash_ledger, public.cash_withdrawals to authenticated;
+grant select on public.cash_ledger, public.cash_payment_events, public.cash_withdrawals to authenticated;
 
 drop policy if exists "members read own cash ledger" on public.cash_ledger;
 create policy "members read own cash ledger" on public.cash_ledger
