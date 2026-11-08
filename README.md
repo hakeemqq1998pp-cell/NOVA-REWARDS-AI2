@@ -28,6 +28,7 @@ Run these scripts in the Supabase SQL Editor in this exact order:
 1. `supabase/schema.sql`
 2. `supabase/profile-bootstrap.sql`
 3. `supabase/secure-actions.sql`
+4. `supabase/cash-wallet.sql` (cash accounting and payout-request foundation; does not activate a payment provider)
 
 Then configure Supabase Authentication:
 - Enable email magic-link authentication.
@@ -53,8 +54,10 @@ The admin screen can then review pending task requests. Approval and point-ledge
 
 A GitHub Actions build check runs on pushes to `main` and `nova-v1-build`, and on pull requests targeting `main`.
 
-## Payments, ads and real rewards
-This repository is a starter application, not a live cash-rewards service. Points shown in demo mode are not money and cannot be withdrawn. No payment processor, bank/mobile-wallet payout, ad network, offerwall or paid AI provider is currently connected.
+## Payments, cash wallet and real rewards
+This repository is still not a live cash-rewards service. The `supabase/cash-wallet.sql` migration adds a protected cash ledger, idempotent verified-deposit recording, balance-checked withdrawal holds, admin payout finalization, and automatic refunds for rejected withdrawals. It is an accounting foundation only: no payment processor, bank/mobile-wallet payout, ad network, offerwall or paid AI provider is connected. Points remain separate from cash and have no cash value.
+
+For `amount_minor`, use whole Iraqi dinars for `IQD` and cents for `USD`. A trusted server must verify the payment provider's webhook signature and transaction details before calling `record_verified_cash_deposit()` with the service-role credential. Never call this function from the browser. The member withdrawal RPC accepts only a provider-issued destination token/reference; do not collect wallet PINs, passwords, OTPs or full card details. Admins must execute real payouts in the provider's merchant dashboard and then record the provider payout reference when finalizing a request.
 
 A real payment or payout integration cannot safely be enabled without:
 - a verified merchant/business account and provider approval,
@@ -73,7 +76,9 @@ Until those prerequisites exist, redemption remains disabled. Do not collect car
 - Task completion requests are validated against active tasks in a security-definer RPC.
 - Admin task approvals are role-checked, award points atomically with the status update, and record reviewer identity/time.
 - Referral attribution is recorded at signup only; qualification and rewards still require trusted server-side workflows and audit logs.
-- Real admin approval, redemptions and payouts still require trusted server-side workflows and audit logs.
+- Cash deposits are credited only through the service-role-only verified-payment RPC; provider webhook signature verification must happen in a trusted server.
+- Withdrawal requests reserve funds atomically; rejected requests are refunded in the cash ledger. Marking a request paid requires an admin and an external payout reference.
+- Real payout execution, provider webhook deployment, reconciliation, identity checks and legal/compliance review are still required before launch.
 
 ## Structure
 - `src/App.jsx` — screens and demo interactions
