@@ -22,6 +22,7 @@ const copy = {
     demoNotice:"هذه نسخة أولية. النقاط المعروضة تجريبية ولا تمثل أموالاً أو رصيداً قابلاً للسحب.",
     backend:"حالة الربط", connected:"Supabase متصل بالإعدادات", notConnected:"لم تتم إضافة مفاتيح Supabase بعد",
     walletTitle:"محفظتك", walletText:"راجع رصيد النقاط وسجل الحركات وطلبات الاستبدال.",
+    cashBalance:"الرصيد النقدي", cashWithdraw:"طلب سحب نقدي", cashAmount:"المبلغ بالدينار", cashDestination:"رمز وجهة السحب الصادر من المزود", cashSubmit:"إرسال طلب السحب", cashPending:"معلّق", cashPaid:"مدفوع", cashRejected:"مرفوض", cashNoRecords:"لا توجد حركات نقدية.", cashSignIn:"سجّل الدخول لعرض المحفظة النقدية.", cashSafety:"لا تدخل رقم PIN أو كلمة مرور أو OTP أو بيانات بطاقة. هذا الحقل مخصص لرمز وجهة يصدره مزود الدفع بعد تفعيله.", cashDisabled:"الإيداع غير متاح حالياً؛ لم يتم ربط مزود دفع بعد.",
     redeem:"طلب استبدال", noCash:"الاستبدال والسحب غير مفعلين حتى ربط مزود دفع والتحقق من الشروط.",
     task1:"أكمل ملفك الشخصي", task1d:"أضف معلوماتك الأساسية لتهيئة حسابك.",
     task2:"استكشف ميزة NOVA AI", task2d:"جرّب مساحة الأدوات الذكية داخل المنصة.",
@@ -48,6 +49,7 @@ const copy = {
     demoNotice:"This is an early preview. Displayed points are demo values, not money or withdrawable balance.",
     backend:"Connection", connected:"Supabase configured", notConnected:"Supabase keys have not been added",
     walletTitle:"Your wallet", walletText:"Review points, transactions and redemption requests.",
+    cashBalance:"Cash balance", cashWithdraw:"Cash withdrawal request", cashAmount:"Amount in IQD", cashDestination:"Provider-issued payout destination token", cashSubmit:"Submit withdrawal request", cashPending:"Pending", cashPaid:"Paid", cashRejected:"Rejected", cashNoRecords:"No cash transactions yet.", cashSignIn:"Sign in to view your cash wallet.", cashSafety:"Never enter a PIN, password, OTP or card details. This field is only for a payout destination token issued by an activated provider.", cashDisabled:"Deposits are unavailable; no payment provider is connected yet.",
     redeem:"Request redemption", noCash:"Redemption and withdrawals are disabled until a payment provider and rules are configured.",
     task1:"Complete your profile", task1d:"Add basic information to set up your account.",
     task2:"Explore NOVA AI", task2d:"Try the smart tools area inside the platform.",
@@ -86,6 +88,12 @@ export default function App() {
   const [done,setDone] = useState([]);
   const [ledgerPoints,setLedgerPoints] = useState(null);
   const [ledgerEntries,setLedgerEntries] = useState([]);
+  const [cashLedger,setCashLedger] = useState([]);
+  const [cashWithdrawals,setCashWithdrawals] = useState([]);
+  const [cashLoading,setCashLoading] = useState(false);
+  const [cashAmount,setCashAmount] = useState("");
+  const [cashDestination,setCashDestination] = useState("");
+  const [cashBusy,setCashBusy] = useState(false);
   const [activeTasks,setActiveTasks] = useState(null);
   const [requestedTaskStatuses,setRequestedTaskStatuses] = useState({});
   const [qualifiedReferrals,setQualifiedReferrals] = useState(0);
@@ -152,6 +160,45 @@ export default function App() {
     })();
     return () => { alive = false; };
   }, [user]);
+
+  useEffect(() => {
+    if (!supabase || !user) { setCashLedger([]); setCashWithdrawals([]); return; }
+    let alive = true;
+    setCashLoading(true);
+    (async () => {
+      const [{data: ledger,error: ledgerError},{data: withdrawals,error: withdrawalsError}] = await Promise.all([
+        supabase.from("cash_ledger").select("amount_minor,currency,entry_type,description,created_at").order("created_at",{ascending:false}).limit(30),
+        supabase.from("cash_withdrawals").select("id,amount_minor,currency,status,created_at").order("created_at",{ascending:false}).limit(20)
+      ]);
+      if (!alive) return;
+      setCashLedger(ledgerError ? [] : (ledger || []));
+      setCashWithdrawals(withdrawalsError ? [] : (withdrawals || []));
+      setCashLoading(false);
+      if (ledgerError && !String(ledgerError.message || "").includes("does not exist")) setMessage(ledgerError.message);
+    })();
+    return () => { alive = false; };
+  }, [user]);
+
+  async function requestCashWithdrawal(e) {
+    e.preventDefault();
+    if (!supabase || !user) { setMessage(isAr ? "سجّل الدخول أولاً." : "Sign in first."); return; }
+    const amount = Number(cashAmount);
+    const destination = cashDestination.trim();
+    if (!Number.isSafeInteger(amount) || amount <= 0 || destination.length < 3 || destination.length > 200) {
+      setMessage(isAr ? "أدخل مبلغاً صحيحاً ورمز وجهة صالحاً." : "Enter a valid amount and destination token."); return;
+    }
+    setCashBusy(true);
+    const {error} = await supabase.rpc("request_cash_withdrawal", {p_amount_minor:amount,p_currency:"IQD",p_destination_token:destination});
+    setCashBusy(false);
+    if (error) { setMessage(error.message || t.authError); return; }
+    setCashAmount(""); setCashDestination("");
+    setMessage(isAr ? "تم تسجيل طلب السحب كطلب معلّق. لم يتم تحويل أموال." : "Withdrawal request recorded as pending. No money has been transferred.");
+    const [{data: ledger},{data: withdrawals}] = await Promise.all([
+      supabase.from("cash_ledger").select("amount_minor,currency,entry_type,description,created_at").order("created_at",{ascending:false}).limit(30),
+      supabase.from("cash_withdrawals").select("id,amount_minor,currency,status,created_at").order("created_at",{ascending:false}).limit(20)
+    ]);
+    setCashLedger(ledger || []); setCashWithdrawals(withdrawals || []);
+  }
 
   async function authenticate(e) {
     e.preventDefault();
@@ -284,7 +331,7 @@ export default function App() {
         </>}
 
         {tab==="tasks" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.discover}</h2><p>{t.available}</p></div><span className="soft-pill">{visibleTasks.length} {isAr?"مهام":"tasks"}</span></div>{visibleTasks.length ? visibleTasks.map(task=><TaskRow key={task.id} task={task} t={t} completed={Boolean(taskStatus(task.id))} status={taskStatus(task.id)} onStart={()=>completeTask(task.id)}/>) : <div className="empty-state"><p>{t.noTasks}</p></div>}</section>}
-        {tab==="wallet" && <section className="panel wallet-page"><div className="wallet-hero"><div><span>{t.points}</span><h2>{points.toLocaleString()} <small>{t.pointsUnit}</small></h2><p>{t.noCash}</p></div><div className="wallet-graphic"><Wallet size={52}/></div></div><div className="section-head"><div><h2>{t.walletTitle}</h2><p>{t.walletText}</p></div></div><ActivityList done={done} daily={daily} t={t} user={Boolean(user)} ledgerEntries={ledgerEntries}/><button className="primary-btn disabled-btn" disabled><ArrowDownToLine size={17}/>{t.redeem}</button></section>}
+        {tab==="wallet" && <section className="panel wallet-page"><div className="wallet-hero"><div><span>{t.points}</span><h2>{points.toLocaleString()} <small>{t.pointsUnit}</small></h2><p>{t.noCash}</p></div><div className="wallet-graphic"><Wallet size={52}/></div></div><div className="cash-wallet-card"><div className="cash-wallet-head"><div><span>{t.cashBalance}</span><h2>{(cashLedger.filter(x=>x.currency==="IQD").reduce((sum,x)=>sum+Number(x.amount_minor||0),0)).toLocaleString()} <small>IQD</small></h2></div><span className="soft-pill">{cashLoading?"…":user?(isAr?"حساب مرتبط":"Account linked"):(isAr?"يلزم تسجيل الدخول":"Sign in required")}</span></div><p>{t.cashDisabled}</p>{!user ? <p>{t.cashSignIn}</p> : <form className="cash-withdraw-form" onSubmit={requestCashWithdrawal}><h3>{t.cashWithdraw}</h3><label>{t.cashAmount}<input type="number" min="1" step="1" required value={cashAmount} onChange={e=>setCashAmount(e.target.value)} placeholder="10000"/></label><label>{t.cashDestination}<input type="text" minLength="3" maxLength="200" required value={cashDestination} onChange={e=>setCashDestination(e.target.value)} placeholder="Provider token / reference"/></label><small>{t.cashSafety}</small><button className="primary-btn" disabled={cashBusy||cashLoading}>{cashBusy?(isAr?"جارٍ الإرسال…":"Submitting…"):t.cashSubmit}</button></form>}<div className="cash-history"><h3>{isAr?"آخر الحركات النقدية":"Recent cash activity"}</h3>{cashLedger.length ? cashLedger.map((entry,i)=><div className="activity-row" key={i}><b>{entry.description}</b><span>{entry.amount_minor>0?"+":""}{Number(entry.amount_minor).toLocaleString()} {entry.currency}</span></div>) : <div className="empty-state"><p>{t.cashNoRecords}</p></div>}</div><div className="cash-history"><h3>{isAr?"طلبات السحب":"Withdrawal requests"}</h3>{cashWithdrawals.length ? cashWithdrawals.map(item=><div className="activity-row" key={item.id}><b>{item.amount_minor.toLocaleString()} {item.currency}</b><span>{item.status==="paid"?t.cashPaid:item.status==="rejected"?t.cashRejected:t.cashPending}</span></div>) : <div className="empty-state"><p>{t.cashNoRecords}</p></div>}</div></div><div className="section-head"><div><h2>{t.walletTitle}</h2><p>{t.walletText}</p></div></div><ActivityList done={done} daily={daily} t={t} user={Boolean(user)} ledgerEntries={ledgerEntries}/></section>}
         {tab==="referrals" && <section className="panel page-panel referral-page"><div className="ref-illustration"><Users size={48}/></div><h2>{t.referralTitle}</h2><p>{t.referralText}</p><button className="primary-btn" onClick={copyReferral}>{copied?<Check/>:<ArrowUpRight/>}{copied?t.copied:t.copy}</button><small>{t.demoNotice}</small></section>}
         {tab==="history" && <section className="panel page-panel"><div className="section-head"><div><h2>{t.recent}</h2><p>{t.demo}</p></div></div><ActivityList done={done} daily={daily} t={t} user={Boolean(user)} ledgerEntries={ledgerEntries}/></section>}
       </div>
