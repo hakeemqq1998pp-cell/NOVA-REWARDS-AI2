@@ -107,7 +107,7 @@ language plpgsql
 security definer
 set search_path = public
 as $$
-eclare
+declare
   v_admin uuid := auth.uid();
   v_user_id uuid;
   v_task_id uuid;
